@@ -6,14 +6,13 @@ import "time"
 type Category struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
-	LogoURL   string    `json:"logo_url,omitempty"` // Only Level 1 has a logo
 	Priority  int16     `json:"priority"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
-	
+
 	// Relation: Nested for Tree View
-	SubCategories []SubCategory `json:"sub_categories,omitempty"`
+	SubCategories []SubCategory `json:"subitems,omitempty"`
 }
 
 // SubCategory (Level 2)
@@ -27,7 +26,7 @@ type SubCategory struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 
 	// Relation: Nested for Tree View
-	SubSubCategories []SubSubCategory `json:"sub_sub_categories,omitempty"`
+	SubSubCategories []SubSubCategory `json:"subitems,omitempty"`
 }
 
 // SubSubCategory (Level 3)

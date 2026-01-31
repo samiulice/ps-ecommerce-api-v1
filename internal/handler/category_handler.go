@@ -49,12 +49,11 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	file, header, _ := r.FormFile("logo")
 	if file != nil {
 		defer file.Close()
-		path, err := utils.SaveMultipartImage(file, header, "categories", name)
+		_, err := utils.SaveMultipartImage(file, header, "categories", name)
 		if err != nil {
 			utils.ServerError(w, err)
 			return
 		}
-		cat.LogoURL = path
 	}
 
 	if err := h.svc.Create(r.Context(), cat); err != nil {
@@ -94,12 +93,11 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		defer file.Close()
 		// Optional: Delete old image here using os.Remove(existingCat.LogoURL)
 
-		path, err := utils.SaveMultipartImage(file, header, "categories", existingCat.Name)
+		_, err := utils.SaveMultipartImage(file, header, "categories", existingCat.Name)
 		if err != nil {
 			utils.ServerError(w, err)
 			return
 		}
-		existingCat.LogoURL = path
 	}
 	// If file == nil, existingCat.LogoURL remains what it was from DB
 

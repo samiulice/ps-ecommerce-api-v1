@@ -2,7 +2,7 @@
 CREATE TABLE categories (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE, 
-    logo_url VARCHAR(255),
+    icon VARCHAR(255),
     priority SMALLINT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

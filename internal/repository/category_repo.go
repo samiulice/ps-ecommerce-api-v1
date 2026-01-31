@@ -37,7 +37,7 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 	// We construct a JSON object in SQL to avoid N+1 query problems.
 	query := `
 		SELECT 
-			c.id, c.name, c.logo_url, c.priority, c.is_active, c.created_at, c.updated_at,
+			c.id, c.name, c.priority, c.is_active, c.created_at, c.updated_at,
 			COALESCE((
 				SELECT json_agg(sub ORDER BY sub.priority ASC)
 				FROM (
@@ -68,7 +68,7 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 		var c model.Category
 		// pgx automatically unmarshals the JSON column into the Struct slice
 		err := rows.Scan(
-			&c.ID, &c.Name, &c.LogoURL, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
+			&c.ID, &c.Name, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 			&c.SubCategories,
 		)
 		if err != nil {
@@ -84,9 +84,9 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 // ---------------------------------------------------------------------
 
 func (r *CategoryRepo) Create(ctx context.Context, c *model.Category) error {
-	query := `INSERT INTO categories (name, logo_url, priority, is_active) 
+	query := `INSERT INTO categories (name, priority, is_active) 
 	          VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, c.Name, c.LogoURL, c.Priority, c.IsActive).
+	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.IsActive).
 		Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 	if isUniqueViolation(err) {
 		return fmt.Errorf("category name '%s' already exists", c.Name)
@@ -95,9 +95,9 @@ func (r *CategoryRepo) Create(ctx context.Context, c *model.Category) error {
 }
 
 func (r *CategoryRepo) Update(ctx context.Context, c *model.Category) error {
-	query := `UPDATE categories SET name=$1, logo_url=$2, priority=$3, is_active=$4, updated_at=NOW() 
-	          WHERE id=$5 RETURNING created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, c.Name, c.LogoURL, c.Priority, c.IsActive, c.ID).
+	query := `UPDATE categories SET name=$1, priority=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP
+	          WHERE id=$4 RETURNING created_at, updated_at`
+	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.IsActive, c.ID).
 		Scan(&c.CreatedAt, &c.UpdatedAt)
 	if isUniqueViolation(err) {
 		return fmt.Errorf("category name '%s' already exists", c.Name)
@@ -115,10 +115,10 @@ func (r *CategoryRepo) Delete(ctx context.Context, id int64) error {
 
 // GetByID is needed to preserve the old LogoURL during updates if no new image is sent
 func (r *CategoryRepo) GetByID(ctx context.Context, id int64) (*model.Category, error) {
-	query := `SELECT id, name, logo_url, priority, is_active, created_at, updated_at FROM categories WHERE id=$1`
+	query := `SELECT id, name, priority, is_active, created_at, updated_at FROM categories WHERE id=$1`
 	var c model.Category
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.Name, &c.LogoURL, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.Name, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, errors.New("category not found")
@@ -142,7 +142,7 @@ func (r *CategoryRepo) CreateSub(ctx context.Context, s *model.SubCategory) erro
 }
 
 func (r *CategoryRepo) UpdateSub(ctx context.Context, s *model.SubCategory) error {
-	query := `UPDATE sub_categories SET name=$1, priority=$2, is_active=$3, updated_at=NOW() 
+	query := `UPDATE sub_categories SET name=$1, priority=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP 
 	          WHERE id=$4 RETURNING created_at, updated_at`
 	err := r.db.QueryRow(ctx, query, s.Name, s.Priority, s.IsActive, s.ID).
 		Scan(&s.CreatedAt, &s.UpdatedAt)
@@ -189,7 +189,7 @@ func (r *CategoryRepo) CreateSubSub(ctx context.Context, ss *model.SubSubCategor
 }
 
 func (r *CategoryRepo) UpdateSubSub(ctx context.Context, ss *model.SubSubCategory) error {
-	query := `UPDATE sub_sub_categories SET name=$1, priority=$2, is_active=$3, updated_at=NOW() 
+	query := `UPDATE sub_sub_categories SET name=$1, priority=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP 
 	          WHERE id=$4 RETURNING created_at, updated_at`
 	err := r.db.QueryRow(ctx, query, ss.Name, ss.Priority, ss.IsActive, ss.ID).
 		Scan(&ss.CreatedAt, &ss.UpdatedAt)
