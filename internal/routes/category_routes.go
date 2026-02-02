@@ -29,10 +29,11 @@ func categoryRoutes(h *handler.CategoryHandler) *chi.Mux {
 
 	mux.Route("/sub-sub-categories", func(r chi.Router) {
 		// Level 3
-		r.Post("/", h.CreateSubSub)
-		r.Get("/{id}", h.GetSubSubByID)
-		r.Put("/{id}", h.UpdateSubSub)
-		r.Delete("/{id}", h.DeleteSubSub)
+		r.Post("/new", h.CreateSubSub)
+		r.Get("/get/{id}", h.GetSubSubByID)
+		r.Put("/update/{id}", h.UpdateSubSub)
+		r.Delete("/delete/{id}", h.DeleteSubSub)
+		r.Get("/list", h.GetSubSubCategories)
 	})
 	return mux
 }

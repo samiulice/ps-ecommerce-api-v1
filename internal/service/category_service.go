@@ -157,3 +157,6 @@ func (s *CategoryService) DeleteSubSub(ctx context.Context, id int64) error {
 func (s *CategoryService) GetSubSubByID(ctx context.Context, id int64) (*model.SubSubCategory, error) {
 	return s.repo.GetSubSubByID(ctx, id)
 }
+func (s *CategoryService) GetSubSubCategories(ctx context.Context, status string, subCategoryId int64) ([]*model.SubSubCategory, error) {
+	return s.repo.GetSubSubCategories(ctx, status, subCategoryId)
+}

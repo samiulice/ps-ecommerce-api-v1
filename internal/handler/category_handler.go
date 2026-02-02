@@ -269,6 +269,27 @@ func (h *CategoryHandler) DeleteSubSub(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
 
+func (h *CategoryHandler) GetSubSubCategories(w http.ResponseWriter, r *http.Request) {
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	catId, _ := strconv.ParseInt(chi.URLParam(r, "subCategoryId"), 10, 64)
+
+	subSub, err := h.svc.GetSubSubCategories(r.Context(), status, catId)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+	var response struct {
+		Error       bool                 `json:"error"`
+		Message     string               `json:"message"`
+		SubSubCategory []*model.SubSubCategory `json:"sub_sub_categories"`
+	}
+	response.Error = false
+	response.Message = "SubSubCategory retrieved"
+	response.SubSubCategory = subSub
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+
 // Tree View
 func (h *CategoryHandler) GetTree(w http.ResponseWriter, r *http.Request) {
 	onlyActive := r.URL.Query().Get("active") == "true"

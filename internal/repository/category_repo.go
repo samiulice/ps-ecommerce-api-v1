@@ -36,6 +36,7 @@ func isUniqueViolation(err error) bool {
 // ListFullTree fetches Categories -> Sub -> SubSub in a SINGLE database query.
 func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]model.Category, error) {
 	// We construct a JSON object in SQL to avoid N+1 query problems.
+
 	query := `
 		SELECT 
 			c.id, c.name, c.priority, c.thumbnail, c.is_active, c.created_at, c.updated_at,
@@ -48,16 +49,17 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 							SELECT json_agg(ss ORDER BY ss.priority ASC)
 							FROM sub_sub_categories ss
 							WHERE ss.sub_category_id = s.id AND ($1 = FALSE OR ss.is_active = TRUE)
-						), '[]'::json) AS sub_sub_categories
+						-- CHANGE THIS ALIAS TO MATCH STRUCT TAG
+						), '[]'::json) AS subitems 
 					FROM sub_categories s
 					WHERE s.category_id = c.id AND ($1 = FALSE OR s.is_active = TRUE)
 				) sub
-			), '[]'::json) AS sub_categories
+			-- CHANGE THIS ALIAS TO MATCH STRUCT TAG
+			), '[]'::json) AS subitems 
 		FROM categories c
 		WHERE ($1 = FALSE OR c.is_active = TRUE)
 		ORDER BY c.priority ASC, c.created_at DESC
 	`
-
 	rows, err := r.db.Query(ctx, query, onlyActive)
 	if err != nil {
 		return nil, err
@@ -182,6 +184,7 @@ func (r *CategoryRepo) GetCategories(ctx context.Context, status string) ([]*mod
 
 	return categories, nil
 }
+
 // ---------------------------------------------------------------------
 // LEVEL 2: SUB-CATEGORY CRUD
 // ---------------------------------------------------------------------
@@ -336,4 +339,68 @@ func (r *CategoryRepo) GetSubSubByID(ctx context.Context, id int64) (*model.SubS
 		return nil, errors.New("sub-sub-category not found")
 	}
 	return &ss, err
+}
+
+func (r *CategoryRepo) GetSubSubCategories(ctx context.Context, status string, subCategoryId int64) ([]*model.SubSubCategory, error) {
+
+	baseQuery := `
+		SELECT id, sub_category_id, name, priority, is_active, created_at, updated_at
+		FROM sub_sub_categories
+	`
+
+	var conditions []string
+	var args []any
+	argPos := 1
+
+	// status filter
+	if status == "active" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, true)
+		argPos++
+	} else if status == "inactive" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, false)
+		argPos++
+	}
+
+	// category filter
+	if subCategoryId > 0 {
+		conditions = append(conditions, fmt.Sprintf("sub_category_id = $%d", argPos))
+		args = append(args, subCategoryId)
+		argPos++
+	}
+
+	// build final query
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	baseQuery += " ORDER BY priority ASC"
+
+	rows, err := r.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subSubCategories []*model.SubSubCategory
+
+	for rows.Next() {
+		var s model.SubSubCategory
+		err := rows.Scan(
+			&s.ID,
+			&s.SubCategoryID,
+			&s.Name,
+			&s.Priority,
+			&s.IsActive,
+			&s.CreatedAt,
+			&s.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		subSubCategories = append(subSubCategories, &s)
+	}
+
+	return subSubCategories, nil
 }
