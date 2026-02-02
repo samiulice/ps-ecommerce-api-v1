@@ -53,14 +53,14 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("Image exist")
 	}
 	err := h.svc.Create(r.Context(), cat, file, header)
-	if  err != nil {
+	if err != nil {
 		h.handleErr(w, err)
 		return
 	}
 
 	var response struct {
-		Error   bool        `json:"error"`
-		Message string      `json:"message"`
+		Error    bool            `json:"error"`
+		Message  string          `json:"message"`
 		Category *model.Category `json:"category"`
 	}
 	response.Error = false
@@ -90,15 +90,15 @@ func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	// 4. Handle New Image
 	file, header, _ := r.FormFile("thumbnail")
-	
+
 	// 5. Save
 	if err := h.svc.Update(r.Context(), &category, file, header); err != nil {
 		h.handleErr(w, err)
 		return
 	}
 	var response struct {
-		Error   bool        `json:"error"`
-		Message string      `json:"message"`
+		Error    bool           `json:"error"`
+		Message  string         `json:"message"`
 		Category model.Category `json:"category"`
 	}
 	response.Error = false
@@ -114,8 +114,8 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var response struct {
-		Error   bool        `json:"error"`
-		Message string      `json:"message"`
+		Error   bool   `json:"error"`
+		Message string `json:"message"`
 	}
 	response.Error = false
 	response.Message = "Category deleted successfully"
@@ -125,12 +125,30 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 
-	ssc, err := h.svc.GetSubSubByID(r.Context(), id)
+	ssc, err := h.svc.GetByID(r.Context(), id)
 	if err != nil {
 		utils.NotFound(w, err)
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, ssc)
+}
+func (h *CategoryHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+
+	cat, err := h.svc.GetCategories(r.Context(), status)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+	var response struct {
+		Error    bool              `json:"error"`
+		Message  string            `json:"message"`
+		Category []*model.Category `json:"categories"`
+	}
+	response.Error = false
+	response.Message = "Category retrieved"
+	response.Category = cat
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 // ---------------- LEVEL 2 (JSON - No Image) ----------------
@@ -142,7 +160,6 @@ func (h *CategoryHandler) CreateSub(w http.ResponseWriter, r *http.Request) {
 		utils.BadRequest(w, err)
 		return
 	}
-	sub.IsActive = true // Default
 
 	if err := h.svc.CreateSub(r.Context(), &sub); err != nil {
 		h.handleErr(w, err)
@@ -187,6 +204,26 @@ func (h *CategoryHandler) GetSubByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, sub)
+}
+
+func (h *CategoryHandler) GetSubCategories(w http.ResponseWriter, r *http.Request) {
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	catId, _ := strconv.ParseInt(chi.URLParam(r, "catId"), 10, 64)
+
+	sub, err := h.svc.GetSubCategories(r.Context(), status, catId)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+	var response struct {
+		Error       bool                 `json:"error"`
+		Message     string               `json:"message"`
+		SubCategory []*model.SubCategory `json:"sub_categories"`
+	}
+	response.Error = false
+	response.Message = "SubCategory retrieved"
+	response.SubCategory = sub
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 // ---------------- LEVEL 3 (JSON - No Image) ----------------

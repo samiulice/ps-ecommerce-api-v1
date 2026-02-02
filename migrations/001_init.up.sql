@@ -43,20 +43,6 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 
--- =========================
--- UPDATED_AT TRIGGER
--- =========================
-CREATE OR REPLACE FUNCTION set_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP,
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_users_updated_at ON users;
-
-CREATE TRIGGER trg_users_updated_at
-BEFORE UPDATE ON users
-FOR EACH ROW
-EXECUTE PROCEDURE set_updated_at();
+-- INSERT INTO public.users
+-- (id, "uuid", email, password_hash, "name", mobile, "role", is_active, is_verified, created_at, updated_at)
+-- VALUES(1, 'b5046bdb-7b0a-41da-9c5b-9b300b09991a'::uuid, 'noorsupermart@gmail.com', '$2a$10$Dcwf7EbwRiUDfKzuc1i8Lu7POM0BkPEhJiApCD7ZQLLhYHlt8sM3W', '', '', '', false, false, '2026-02-02 05:43:38.458', '2026-02-02 05:43:38.458');

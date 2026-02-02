@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -125,7 +126,62 @@ func (r *CategoryRepo) GetByID(ctx context.Context, id int64) (*model.Category, 
 	}
 	return &c, err
 }
+func (r *CategoryRepo) GetCategories(ctx context.Context, status string) ([]*model.Category, error) {
 
+	baseQuery := `
+		SELECT id, name, priority, thumbnail, is_active, created_at, updated_at
+		FROM categories
+	`
+
+	var conditions []string
+	var args []any
+	argPos := 1
+
+	// status filter
+	if status == "active" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, true)
+		argPos++
+	} else if status == "inactive" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, false)
+		argPos++
+	}
+
+	// build final query
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	baseQuery += " ORDER BY priority ASC"
+
+	rows, err := r.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var categories []*model.Category
+
+	for rows.Next() {
+		var cat model.Category
+		err := rows.Scan(
+			&cat.ID,
+			&cat.Name,
+			&cat.Priority,
+			&cat.Thumbnail,
+			&cat.IsActive,
+			&cat.CreatedAt,
+			&cat.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		categories = append(categories, &cat)
+	}
+
+	return categories, nil
+}
 // ---------------------------------------------------------------------
 // LEVEL 2: SUB-CATEGORY CRUD
 // ---------------------------------------------------------------------
@@ -142,9 +198,9 @@ func (r *CategoryRepo) CreateSub(ctx context.Context, s *model.SubCategory) erro
 }
 
 func (r *CategoryRepo) UpdateSub(ctx context.Context, s *model.SubCategory) error {
-	query := `UPDATE sub_categories SET name=$1, priority=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP 
-	          WHERE id=$4 RETURNING created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, s.Name, s.Priority, s.IsActive, s.ID).
+	query := `UPDATE sub_categories SET category_id=$1, name=$2, priority=$3, is_active=$4, updated_at=CURRENT_TIMESTAMP 
+	          WHERE id=$5 RETURNING created_at, updated_at`
+	err := r.db.QueryRow(ctx, query, s.CategoryID, s.Name, s.Priority, s.IsActive, s.ID).
 		Scan(&s.CreatedAt, &s.UpdatedAt)
 	if isUniqueViolation(err) {
 		return fmt.Errorf("sub-category name '%s' already exists", s.Name)
@@ -171,6 +227,69 @@ func (r *CategoryRepo) GetSubByID(ctx context.Context, id int64) (*model.SubCate
 		return nil, errors.New("sub-category not found")
 	}
 	return &s, err
+}
+func (r *CategoryRepo) GetSubCategories(ctx context.Context, status string, catId int64) ([]*model.SubCategory, error) {
+
+	baseQuery := `
+		SELECT id, category_id, name, priority, is_active, created_at, updated_at
+		FROM sub_categories
+	`
+
+	var conditions []string
+	var args []any
+	argPos := 1
+
+	// status filter
+	if status == "active" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, true)
+		argPos++
+	} else if status == "inactive" {
+		conditions = append(conditions, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, false)
+		argPos++
+	}
+
+	// category filter
+	if catId > 0 {
+		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argPos))
+		args = append(args, catId)
+		argPos++
+	}
+
+	// build final query
+	if len(conditions) > 0 {
+		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	baseQuery += " ORDER BY priority ASC"
+
+	rows, err := r.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subCategories []*model.SubCategory
+
+	for rows.Next() {
+		var s model.SubCategory
+		err := rows.Scan(
+			&s.ID,
+			&s.CategoryID,
+			&s.Name,
+			&s.Priority,
+			&s.IsActive,
+			&s.CreatedAt,
+			&s.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		subCategories = append(subCategories, &s)
+	}
+
+	return subCategories, nil
 }
 
 // ---------------------------------------------------------------------

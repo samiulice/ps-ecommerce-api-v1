@@ -103,6 +103,9 @@ func (s *CategoryService) Delete(ctx context.Context, id int64) error {
 func (s *CategoryService) GetByID(ctx context.Context, id int64) (*model.Category, error) {
 	return s.repo.GetByID(ctx, id)
 }
+func (s *CategoryService) GetCategories(ctx context.Context, status string) ([]*model.Category, error) {
+	return s.repo.GetCategories(ctx, status)
+}
 
 // --- Level 2 ---
 func (s *CategoryService) CreateSub(ctx context.Context, sc *model.SubCategory) error {
@@ -112,6 +115,7 @@ func (s *CategoryService) CreateSub(ctx context.Context, sc *model.SubCategory) 
 	if sc.Name == "" {
 		return errors.New("name is required")
 	}
+	sc.IsActive = true // Default
 	return s.repo.CreateSub(ctx, sc)
 }
 func (s *CategoryService) UpdateSub(ctx context.Context, sc *model.SubCategory) error {
@@ -125,6 +129,10 @@ func (s *CategoryService) DeleteSub(ctx context.Context, id int64) error {
 }
 func (s *CategoryService) GetSubByID(ctx context.Context, id int64) (*model.SubCategory, error) {
 	return s.repo.GetSubByID(ctx, id)
+}
+
+func (s *CategoryService) GetSubCategories(ctx context.Context, status string, catId int64) ([]*model.SubCategory, error) {
+	return s.repo.GetSubCategories(ctx, status, catId)
 }
 
 // --- Level 3 ---
