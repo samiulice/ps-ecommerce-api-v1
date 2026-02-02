@@ -67,7 +67,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*model
 	if err := s.tokens.Save(ctx, refresh, user.ID, 7*24*time.Hour); err != nil {
 		return nil, "", "", err
 	}
-
+	//sanitize output
+	user.Password = ""
+	// TODO: Remove hard-coded branch_id
+	user.BranchID = 1
 	return user, access, refresh, nil
 }
 

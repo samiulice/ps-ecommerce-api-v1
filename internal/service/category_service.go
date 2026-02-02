@@ -3,9 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
 
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/repository"
+	"github.com/projuktisheba/pse-api-v1/pkg/utils"
 )
 
 type CategoryService struct {
@@ -22,20 +26,79 @@ func (s *CategoryService) GetTree(ctx context.Context, onlyActive bool) ([]model
 }
 
 // --- Level 1 ---
-func (s *CategoryService) Create(ctx context.Context, c *model.Category) error {
+func (s *CategoryService) Create(ctx context.Context, c *model.Category, file multipart.File, header *multipart.FileHeader) error {
 	if c.Name == "" {
 		return errors.New("name is required")
 	}
-	return s.repo.Create(ctx, c)
+
+	//set thumbnail url if exist
+	if file != nil {
+		// Get the extension from the ACTUAL uploaded file (Source of Truth)
+		ext := strings.ToLower(filepath.Ext(header.Filename))
+
+		c.Thumbnail = utils.GetCategoryThumbnailURL(c.Name, ext)
+	}
+
+	// insert the data
+	err := s.repo.Create(ctx, c)
+
+	//Save the file if exist for successful database insertion
+	if err == nil && file != nil {
+		defer file.Close()
+		_, err := utils.SaveMultipartImage(file, header, utils.GetCategoryFolderPath(""), c.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	return err
 }
-func (s *CategoryService) Update(ctx context.Context, c *model.Category) error {
+func (s *CategoryService) Update(ctx context.Context, c *model.Category, file multipart.File, header *multipart.FileHeader) error {
 	if c.ID == 0 {
 		return errors.New("id is required")
 	}
-	return s.repo.Update(ctx, c)
+
+	// 1. Fetch Existing Data to preserve old Logo if not updating
+	existingCat, err := s.GetByID(ctx, c.ID)
+	if err != nil {
+		return err
+	}
+
+	//set thumbnail url if exist
+	if file != nil {
+		// Get the extension from the ACTUAL uploaded file (Source of Truth)
+		ext := strings.ToLower(filepath.Ext(header.Filename))
+
+		c.Thumbnail = utils.GetCategoryThumbnailURL(c.Name, ext)
+	}
+	err = s.repo.Update(ctx, c)
+	// 4. Handle New Image
+	if err == nil && file != nil {
+		defer file.Close()
+		// Optional: Delete old image here using os.Remove(existingCat.LogoURL)
+		_, err := utils.SaveMultipartImage(file, header, utils.GetCategoryFolderPath(""), c.Name)
+		if err != nil {
+			return err
+		}
+		if existingCat.Thumbnail != c.Thumbnail {
+			utils.DeleteFile(utils.GetCategoryFolderPath(filepath.Base(existingCat.Thumbnail)))
+		}
+
+	}
+
+	return err
 }
 func (s *CategoryService) Delete(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+	// 1. Fetch Existing Data
+	existingCat, err := s.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	err = s.repo.Delete(ctx, id)
+	if err == nil {
+		return utils.DeleteFile(utils.GetCategoryFolderPath(filepath.Base(existingCat.Thumbnail)))
+	}
+	return err
 }
 func (s *CategoryService) GetByID(ctx context.Context, id int64) (*model.Category, error) {
 	return s.repo.GetByID(ctx, id)

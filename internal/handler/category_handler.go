@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ func NewCategoryHandler(svc *service.CategoryService) *CategoryHandler {
 }
 
 func (h *CategoryHandler) handleErr(w http.ResponseWriter, err error) {
+	fmt.Println("Error: ", err)
 	if strings.Contains(err.Error(), "already exists") {
 		utils.WriteJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 	} else {
@@ -45,68 +47,64 @@ func (h *CategoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 		IsActive: true,
 	}
 
-	// Save Image
-	file, header, _ := r.FormFile("logo")
+	// Image
+	file, header, _ := r.FormFile("thumbnail")
 	if file != nil {
-		defer file.Close()
-		_, err := utils.SaveMultipartImage(file, header, "categories", name)
-		if err != nil {
-			utils.ServerError(w, err)
-			return
-		}
+		fmt.Println("Image exist")
 	}
-
-	if err := h.svc.Create(r.Context(), cat); err != nil {
+	err := h.svc.Create(r.Context(), cat, file, header)
+	if  err != nil {
 		h.handleErr(w, err)
 		return
 	}
-	utils.WriteJSON(w, http.StatusCreated, cat)
+
+	var response struct {
+		Error   bool        `json:"error"`
+		Message string      `json:"message"`
+		Category *model.Category `json:"category"`
+	}
+	response.Error = false
+	response.Message = "Category added successfully"
+	response.Category = cat
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 // Update Category (Multipart) - Handles Photo Replacement
 func (h *CategoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 
-	// 1. Fetch Existing Data to preserve old Logo if not updating
-	existingCat, err := h.svc.GetByID(r.Context(), id)
-	if err != nil {
-		utils.NotFound(w, err)
-		return
-	}
-
-	// 2. Parse Form
+	// 1. Parse Form
 	if err := r.ParseMultipartForm(5 << 20); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}
 
-	// 3. Update Text Fields
-	existingCat.Name = r.FormValue("name")
-	existingCat.Priority = int16(utils.ParseInt(r.FormValue("priority")))
+	var category model.Category
+	// 2. Update Text Fields
+	category.ID = id
+	category.Name = r.FormValue("name")
+	category.Priority = int16(utils.ParseInt(r.FormValue("priority")))
 	if val := r.FormValue("is_active"); val != "" {
-		existingCat.IsActive = (val == "true")
+		category.IsActive = (val == "1")
 	}
 
 	// 4. Handle New Image
-	file, header, _ := r.FormFile("logo")
-	if file != nil {
-		defer file.Close()
-		// Optional: Delete old image here using os.Remove(existingCat.LogoURL)
-
-		_, err := utils.SaveMultipartImage(file, header, "categories", existingCat.Name)
-		if err != nil {
-			utils.ServerError(w, err)
-			return
-		}
-	}
-	// If file == nil, existingCat.LogoURL remains what it was from DB
-
+	file, header, _ := r.FormFile("thumbnail")
+	
 	// 5. Save
-	if err := h.svc.Update(r.Context(), existingCat); err != nil {
+	if err := h.svc.Update(r.Context(), &category, file, header); err != nil {
 		h.handleErr(w, err)
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, existingCat)
+	var response struct {
+		Error   bool        `json:"error"`
+		Message string      `json:"message"`
+		Category model.Category `json:"category"`
+	}
+	response.Error = false
+	response.Message = "Category updated successfully"
+	response.Category = category
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -115,7 +113,13 @@ func (h *CategoryHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		utils.ServerError(w, err)
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
+	var response struct {
+		Error   bool        `json:"error"`
+		Message string      `json:"message"`
+	}
+	response.Error = false
+	response.Message = "Category deleted successfully"
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *CategoryHandler) GetByID(w http.ResponseWriter, r *http.Request) {
@@ -172,6 +176,7 @@ func (h *CategoryHandler) DeleteSub(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.WriteJSON(w, http.StatusOK, map[string]string{"message": "deleted"})
 }
+
 func (h *CategoryHandler) GetSubByID(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 
@@ -235,7 +240,16 @@ func (h *CategoryHandler) GetTree(w http.ResponseWriter, r *http.Request) {
 		utils.ServerError(w, err)
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, tree)
+	var response struct {
+		Error      bool             `json:"error"`
+		Message    string           `json:"message"`
+		Categories []model.Category `json:"categories"`
+	}
+	response.Error = false
+	response.Message = "Categories listed successfully"
+	response.Categories = tree
+	fmt.Printf("%+v\n", response)
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 func (h *CategoryHandler) GetSubSubByID(w http.ResponseWriter, r *http.Request) {

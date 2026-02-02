@@ -6,12 +6,12 @@ import (
 	"strings"
 )
 
-// GetImagesDirectoryPath returns the absolute or relative path to the
-// root images directory and ensures it exists.
-// Example: "assets/images"
-func GetImagesDirectoryPath() string {
+// GetPublicImagesDirectoryPath returns the absolute or relative path to the
+// root public images directory and ensures it exists.
+// Example: "assets/public/images"
+func GetPublicImagesDirectoryPath() string {
 	// filepath.Join ensures the path separators are correct for the OS
-	path := filepath.Join(".", "assets", "images")
+	path := filepath.Join(".", "assets", "public", "images")
 
 	// Create directory if it does not exist
 	_ = os.MkdirAll(path, os.ModePerm)
@@ -25,7 +25,7 @@ func GetImagesDirectoryPath() string {
 // It also ensures the directory exists.
 func GetCategoryFolderPath(filename string) string {
 	// Define the specific subdirectory for categories
-	basePath := filepath.Join(".", "assets", "images", "category")
+	basePath := filepath.Join(".", "assets", "public", "images", "categories")
 
 	// Ensure directory exists
 	_ = os.MkdirAll(basePath, os.ModePerm)
@@ -43,6 +43,13 @@ func GetCategoryFolderPath(filename string) string {
 	return filepath.Join(basePath, filename)
 }
 
+// GetCategoryThumbnailURL constructs the url for a category image.
+// It accepts a filename, ext, sanitizes it, and appends it to the category directory.
+func GetCategoryThumbnailURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "categories", filename + ext}, "/")
+
+}
 
 // GetProductFolderPath constructs the full file path for a Product images.
 // It accepts a filename, sanitizes it, and appends it to the product directory.
@@ -56,7 +63,6 @@ func GetProductFolderPath(filename string) string {
 	_ = os.MkdirAll(basePath, os.ModePerm)
 
 	// Security: Clean the filename to remove unsafe characters
-	// Note: sanitizeFilename should already exist in utils
 	filename = sanitizeFilename(filename)
 
 	// If no filename is provided after sanitization, return the folder path
@@ -68,7 +74,6 @@ func GetProductFolderPath(filename string) string {
 	return filepath.Join(basePath, filename)
 }
 
-
 // sanitizeFilename removes unsafe characters from filenames
 func sanitizeFilename(name string) string {
 	name = strings.ToLower(name)
@@ -78,8 +83,8 @@ func sanitizeFilename(name string) string {
 	clean := make([]rune, 0, len(name))
 	for _, r := range name {
 		if (r >= 'a' && r <= 'z') ||
-			(r >= '0' && r <= '9') ||
-			r == '-' || r == '_' {
+			(r >= '0' && r <= '9') || 
+			r == '-' || r == '_' || r=='.' {
 			clean = append(clean, r)
 		}
 	}

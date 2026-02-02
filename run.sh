@@ -22,7 +22,7 @@ fi
 
 # 3️⃣ Build and run server
 echo "🔹 Building Go server..."
-go build -o ./bin/api ./cmd/api
+go build -o ./bin/app ./cmd/api
 
 echo "🔹 Starting server..."
-./bin/api
+./bin/app

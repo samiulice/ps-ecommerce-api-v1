@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_hash  TEXT NOT NULL UNIQUE,
     expires_at  TIMESTAMPTZ NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     revoked_at  TIMESTAMPTZ,
 
     CONSTRAINT uq_user_active_token UNIQUE (user_id, revoked_at)

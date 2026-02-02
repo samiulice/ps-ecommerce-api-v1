@@ -37,7 +37,7 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 	// We construct a JSON object in SQL to avoid N+1 query problems.
 	query := `
 		SELECT 
-			c.id, c.name, c.priority, c.is_active, c.created_at, c.updated_at,
+			c.id, c.name, c.priority, c.thumbnail, c.is_active, c.created_at, c.updated_at,
 			COALESCE((
 				SELECT json_agg(sub ORDER BY sub.priority ASC)
 				FROM (
@@ -68,7 +68,7 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 		var c model.Category
 		// pgx automatically unmarshals the JSON column into the Struct slice
 		err := rows.Scan(
-			&c.ID, &c.Name, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
+			&c.ID, &c.Name, &c.Priority, &c.Thumbnail, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 			&c.SubCategories,
 		)
 		if err != nil {
@@ -84,9 +84,9 @@ func (r *CategoryRepo) ListFullTree(ctx context.Context, onlyActive bool) ([]mod
 // ---------------------------------------------------------------------
 
 func (r *CategoryRepo) Create(ctx context.Context, c *model.Category) error {
-	query := `INSERT INTO categories (name, priority, is_active) 
+	query := `INSERT INTO categories (name, priority, thumbnail, is_active) 
 	          VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.IsActive).
+	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.Thumbnail, c.IsActive).
 		Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 	if isUniqueViolation(err) {
 		return fmt.Errorf("category name '%s' already exists", c.Name)
@@ -95,9 +95,9 @@ func (r *CategoryRepo) Create(ctx context.Context, c *model.Category) error {
 }
 
 func (r *CategoryRepo) Update(ctx context.Context, c *model.Category) error {
-	query := `UPDATE categories SET name=$1, priority=$2, is_active=$3, updated_at=CURRENT_TIMESTAMP
-	          WHERE id=$4 RETURNING created_at, updated_at`
-	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.IsActive, c.ID).
+	query := `UPDATE categories SET name=$1, priority=$2, thumbnail=$3, is_active=$4, updated_at=CURRENT_TIMESTAMP
+	          WHERE id=$5 RETURNING created_at, updated_at`
+	err := r.db.QueryRow(ctx, query, c.Name, c.Priority, c.Thumbnail, c.IsActive, c.ID).
 		Scan(&c.CreatedAt, &c.UpdatedAt)
 	if isUniqueViolation(err) {
 		return fmt.Errorf("category name '%s' already exists", c.Name)
@@ -115,10 +115,10 @@ func (r *CategoryRepo) Delete(ctx context.Context, id int64) error {
 
 // GetByID is needed to preserve the old LogoURL during updates if no new image is sent
 func (r *CategoryRepo) GetByID(ctx context.Context, id int64) (*model.Category, error) {
-	query := `SELECT id, name, priority, is_active, created_at, updated_at FROM categories WHERE id=$1`
+	query := `SELECT id, name, priority, thumbnail, is_active, created_at, updated_at FROM categories WHERE id=$1`
 	var c model.Category
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.Name, &c.Priority, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.Name, &c.Priority, &c.Thumbnail, &c.IsActive, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, errors.New("category not found")

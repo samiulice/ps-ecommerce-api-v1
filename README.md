@@ -6,25 +6,35 @@ Following Go best practices and recommended layout:
 
 ```
 pse-api-v1/
-├─ cmd/                 # Main application entry point
-│  └─ api/
-│     └─ main.go
-├─ internal/
-│  ├─ config/           # App configuration structures
-│  ├─ handler/          # HTTP handlers
-│  ├─ service/          # Business logic
-│  ├─ repository/       # DB interactions
-│  └─ routes/           # Chi router routes
-├─ migrations/          # SQL migration scripts
-│  ├─ 001_init.up.sql
-│  ├─ 001_init.down.sql
-│  ├─ 002_user.up.sql
-│  └─ 002_user.down.sql
-├─ pkg/                 # Reusable packages
-├─ scripts/             # Helper scripts (migrate, run)
-├─ bin/                 # Compiled binaries
-├─ .env.example         # Example environment variables
-└─ Makefile             # Build and clean commands
+├───assets
+│   ├───private
+│   │   ├───images
+│   │   └───pdf
+│   └───public
+│       ├───fonts
+│       └───images
+│           ├───brands
+│           └───categories
+├───bin
+├───cmd
+│   └───api
+├───docs
+├───internal
+│   ├───config
+│   ├───database
+│   ├───handler
+│   ├───middleware
+│   ├───model
+│   ├───repository
+│   ├───routes
+│   ├───server
+│   └───service
+├───migrations
+├───pkg
+│   └───utils
+├───scripts
+└───tests
+    └───integration
 ```
 
 ## 2️⃣ Configuration

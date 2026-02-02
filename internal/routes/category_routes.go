@@ -11,10 +11,10 @@ func categoryRoutes(h *handler.CategoryHandler) *chi.Mux {
 	mux.Get("/tree", h.GetTree) // The Full Efficient Tree
 
 	// Level 1
-	mux.Post("/", h.Create)
-	mux.Get("/{id}", h.GetByID)
-	mux.Put("/{id}", h.Update)
-	mux.Delete("/{id}", h.Delete)
+	mux.Post("/new", h.Create)
+	mux.Get("/get/{id}", h.GetByID)
+	mux.Put("/update/{id}", h.Update)
+	mux.Delete("/delete/{id}", h.Delete)
 
 	mux.Route("/sub-categories", func(r chi.Router) {
 		// Level 2

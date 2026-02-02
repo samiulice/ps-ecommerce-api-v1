@@ -6,11 +6,17 @@ import (
 	"os"
 	"strconv"
 	"time"
-)
 
+	"github.com/joho/godotenv" // ✅ added
+)
 
 // Load loads config from environment variables.
 func LoadConfig() *Config {
+	// ✅ load .env file (non-fatal if missing)
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using system environment variables")
+	}
+
 	cfg := &Config{
 		App: AppConfig{
 			Name:    getEnv("APP_NAME", "myapp"),
@@ -19,7 +25,7 @@ func LoadConfig() *Config {
 			Version: getEnv("APP_VERSION", "0.1.0"),
 		},
 		Server: ServerConfig{
-			Port:         getEnvInt("PORT", 8080),
+			Port:         getEnvInt("SERVER_PORT", 8080),
 			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
 			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),

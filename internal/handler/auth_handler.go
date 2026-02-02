@@ -46,8 +46,6 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//sanitize output
-	user.Password = ""
 	var response struct {
 		Error   bool        `json:"error"`
 		Message string      `json:"message"`

@@ -69,12 +69,12 @@ func setupMiddlewares(mux *chi.Mux, cfg *config.Config, rdb *redis.Client) {
 	log.Println("Global middleware and rate limiter enabled")
 }
 
-// setupStaticFiles serves images from ./data/images
+// setupStaticFiles serves static files from ./assets/public
 func setupStaticFiles(mux *chi.Mux) {
-	imageDir := filepath.Join(".", "data", "images")
+	imageDir := filepath.Join(".", "assets", "public")
 	// Note: We use /api/v1/images/ here to match the StripPrefix logic
-	fs := http.StripPrefix("/api/v1/images/", http.FileServer(http.Dir(imageDir)))
-	mux.Handle("/api/v1/images/*", fs)
+	fs := http.StripPrefix("/api/v1/public/", http.FileServer(http.Dir(imageDir)))
+	mux.Handle("/api/v1/public/*", fs)
 }
 
 // setupHealthCheck adds a simple ping endpoint
