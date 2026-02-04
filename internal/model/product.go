@@ -3,40 +3,74 @@ package model
 import "time"
 
 type Product struct {
-	ID                   int64              `json:"id"`
-	Name                 string             `json:"name"`
-	Description          string             `json:"description"`
-	CategoryID           int64              `json:"categoryId"`
-	SubCategoryID        int64              `json:"subCategoryId"`
-	SubSubCategoryID     int64              `json:"subSubCategoryId"`
-	BrandID              int64              `json:"brandId"`
-	SKU                  string             `json:"sku"`
-	Unit                 string             `json:"unit"`
-	SearchTags           string             `json:"searchTags"`
-	Thumbnail            string             `json:"thumbnail"`
-	AdditionalThumbnails string             `json:"additionalThumbnails"`
-	UnitPrice            float64            `json:"unitPrice"`
-	MinOrderQty          float64            `json:"minOrderQty"`
-	CurrentStockQty      float64            `json:"currentStockQty"`
-	StockAlertQty        float64            `json:"stockAlertQty"`
-	DiscountType         string             `json:"discountType"`
-	DiscountAmount       float64            `json:"discountAmount"`
-	TaxAmount            float64            `json:"taxAmount"`
-	TaxCalculation       string             `json:"taxCalculation"`
-	ShippingCost         float64            `json:"shippingCost"`
-	ShippingCostType     string             `json:"shippingCostType"`
-	HasVariation         bool               `json:"hasVariation"`
-	Variations           []ProductVariation `json:"variations,omitempty"` // populated if HasVariation is true
-	CreatedAt            time.Time          `json:"createdAt"`
-	UpdatedAt            time.Time          `json:"updatedAt"`
+	ID                          int64      `json:"id"`
+	AddedBy                     *string    `json:"added_by"`
+	UserID                      *int64     `json:"user_id"`
+	Name                        *string    `json:"name"`
+	Slug                        *string    `json:"slug"`
+	ProductType                 string     `json:"product_type"`
+	CategoryIDs                 *string    `json:"category_ids"`
+	CategoryID                  *string    `json:"category_id"`
+	SubCategoryID               *string    `json:"sub_category_id"`
+	SubSubCategoryID            *string    `json:"sub_sub_category_id"`
+	BrandID                     *int64     `json:"brand_id"`
+	Unit                        *string    `json:"unit"`
+	MinQty                      int        `json:"min_qty"`
+	Refundable                  bool       `json:"refundable"`
+	DigitalProductType          *string    `json:"digital_product_type"`
+	DigitalFileReady            *string    `json:"digital_file_ready"`
+	DigitalFileReadyStorageType *string    `json:"digital_file_ready_storage_type"`
+	Images                      *string    `json:"images"`
+	ColorImage                  string     `json:"color_image"`
+	Thumbnail                   *string    `json:"thumbnail"`
+	ThumbnailStorageType        *string    `json:"thumbnail_storage_type"`
+	PreviewFile                 *string    `json:"preview_file"`
+	PreviewFileStorageType      *string    `json:"preview_file_storage_type"`
+	Featured                    *string    `json:"featured"`
+	FlashDeal                   *string    `json:"flash_deal"`
+	VideoProvider               *string    `json:"video_provider"`
+	VideoURL                    *string    `json:"video_url"`
+	Colors                      *string    `json:"colors"`
+	VariantProduct              bool       `json:"variant_product"`
+	Attributes                  *string    `json:"attributes"`
+	ChoiceOptions               *string    `json:"choice_options"`
+	Variation                   *string    `json:"variation"`
+	DigitalProductFileTypes     *string    `json:"digital_product_file_types"`
+	DigitalProductExtensions    *string    `json:"digital_product_extensions"`
+	Published                   bool       `json:"published"`
+	UnitPrice                   float64    `json:"unit_price"`
+	PurchasePrice               float64    `json:"purchase_price"`
+	Tax                         string     `json:"tax"`
+	TaxType                     *string    `json:"tax_type"`
+	TaxModel                    string     `json:"tax_model"`
+	Discount                    string     `json:"discount"`
+	DiscountType                *string    `json:"discount_type"`
+	CurrentStock                *int       `json:"current_stock"`
+	MinimumOrderQty             int        `json:"minimum_order_qty"`
+	Details                     *string    `json:"details"`
+	FreeShipping                bool       `json:"free_shipping"`
+	Attachment                  *string    `json:"attachment"`
+	CreatedAt                   *time.Time `json:"created_at"`
+	UpdatedAt                   *time.Time `json:"updated_at"`
+	Status                      bool       `json:"status"`
+	FeaturedStatus              bool       `json:"featured_status"`
+	MetaTitle                   *string    `json:"meta_title"`
+	MetaDescription             *string    `json:"meta_description"`
+	MetaImage                   *string    `json:"meta_image"`
+	RequestStatus               bool       `json:"request_status"`
+	DeniedNote                  *string    `json:"denied_note"`
+	ShippingCost                *float64   `json:"shipping_cost"`
+	MultiplyQty                 *bool      `json:"multiply_qty"`
+	TempShippingCost            *float64   `json:"temp_shipping_cost"`
+	IsShippingCostUpdated       *bool      `json:"is_shipping_cost_updated"`
+	Code                        *string    `json:"code"`
 }
 
-type ProductVariation struct {
-	ID        int64   `json:"id"`
-	ProductID int64   `json:"productid"`
-	Name      string  `json:"name"`
-	Price     float64 `json:"price"`
-	SKU       string  `json:"sku"`
-	Stock     int     `json:"stock"`
-	Thumbnail string  `json:"thumbnail"`
+// ProductFilter holds optional query parameters for listing products
+type ProductFilter struct {
+	Status     string // "active", "inactive", or empty for all
+	Published  string // "true", "false", or empty for all
+	CategoryID string // filter by category_id
+	Page       int    // pagination
+	Limit      int    // pagination
 }

@@ -4,6 +4,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
 )
 
 // GenerateRandomToken creates a secure random string for refresh tokens.
@@ -15,4 +16,9 @@ func GenerateRandomToken() (string, error) {
 	}
 
 	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+// Sscanf is a wrapper around fmt.Sscanf that returns the number of items parsed and any error.
+func Sscanf(str, format string, a ...any) (int, error) {
+	return fmt.Sscanf(str, format, a...)
 }

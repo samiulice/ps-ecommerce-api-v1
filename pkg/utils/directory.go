@@ -57,7 +57,7 @@ func GetCategoryThumbnailURL(filename, ext string) string {
 // It also ensures the directory exists.
 func GetProductFolderPath(filename string) string {
 	// Define the specific subdirectory for products
-	basePath := filepath.Join(".", "assets", "images", "products")
+	basePath := filepath.Join(".", "assets", "public", "images", "products")
 
 	// Ensure directory exists
 	_ = os.MkdirAll(basePath, os.ModePerm)
@@ -74,6 +74,13 @@ func GetProductFolderPath(filename string) string {
 	return filepath.Join(basePath, filename)
 }
 
+// GetProductThumbnailURL constructs the url for a product image.
+// It accepts a filename, ext, sanitizes it, and appends it to the product directory.
+func GetProductThumbnailURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "products", filename + ext}, "/")
+}
+
 // sanitizeFilename removes unsafe characters from filenames
 func sanitizeFilename(name string) string {
 	name = strings.ToLower(name)
@@ -83,8 +90,8 @@ func sanitizeFilename(name string) string {
 	clean := make([]rune, 0, len(name))
 	for _, r := range name {
 		if (r >= 'a' && r <= 'z') ||
-			(r >= '0' && r <= '9') || 
-			r == '-' || r == '_' || r=='.' {
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_' || r == '.' {
 			clean = append(clean, r)
 		}
 	}

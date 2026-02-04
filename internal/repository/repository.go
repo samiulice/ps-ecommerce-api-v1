@@ -7,18 +7,22 @@ import (
 
 // DBRepository contains all individual repository
 type DBRepository struct {
-	UserRepository       *UserRepository
+	EmployeeRepository   *EmployeeRepository
+	CustomerRepository   *CustomerRepository
 	RedisTokenRepository *RedisTokenRepo
 	CategoryRepo         *CategoryRepo
 	ProductRepo          *ProductRepo
+	OrderRepo            *OrderRepo
 }
 
 // NewDBRepository initializes all repositories with a shared connection pool
 func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 	return &DBRepository{
-		UserRepository:       NewUserRepo(db),
+		EmployeeRepository:   NewEmployeeRepo(db),
+		CustomerRepository:   NewCustomerRepo(db),
 		RedisTokenRepository: NewRedisTokenRepo(rdb),
 		CategoryRepo:         NewCategoryRepo(db),
 		ProductRepo:          NewProductRepo(db),
+		OrderRepo:            NewOrderRepo(db),
 	}
 }

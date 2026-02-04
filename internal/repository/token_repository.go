@@ -19,11 +19,12 @@ func NewRedisTokenRepo(rdb *redis.Client) *RedisTokenRepo {
 }
 
 // Save stores a refresh token with expiration.
-func (r *RedisTokenRepo) Save(ctx context.Context, token string, userID int, ttl time.Duration) error {
-	return r.rdb.Set(ctx, token, userID, ttl).Err()
+// The value can be a user identifier string like "employee:123" or "user:456".
+func (r *RedisTokenRepo) Save(ctx context.Context, token string, value string, ttl time.Duration) error {
+	return r.rdb.Set(ctx, token, value, ttl).Err()
 }
 
-// Get retrieves the user ID associated with a refresh token.
+// Get retrieves the value associated with a refresh token.
 func (r *RedisTokenRepo) Get(ctx context.Context, token string) (string, error) {
 	return r.rdb.Get(ctx, token).Result()
 }

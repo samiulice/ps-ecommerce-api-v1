@@ -1,8 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
-type User struct {
+type Employee struct {
 	ID         int       `json:"id"`
 	UUID       string    `json:"uuid"`
 	BranchID   int64     `json:"branch_id"`

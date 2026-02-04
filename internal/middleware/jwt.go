@@ -11,9 +11,13 @@ import (
 
 type ctxKey string
 
-const userIDKey ctxKey = "userID"
+const (
+	customerIDKey   ctxKey = "customerID"
+	customerTypeKey ctxKey = "customerType"
+	roleKey     ctxKey = "role"
+)
 
-// JWTAuth validates JWT access tokens and injects user ID into context.
+// JWTAuth validates JWT access tokens and injects customer ID, type, and role into context.
 func JWTAuth(secret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -50,14 +54,94 @@ func JWTAuth(secret string) func(http.Handler) http.Handler {
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), userIDKey, int(uid))
+			// Build context with customer ID
+			ctx := context.WithValue(r.Context(), customerIDKey, int(uid))
+
+			// Extract customer type (employee or customer)
+			if customerType, ok := claims["type"].(string); ok {
+				ctx = context.WithValue(ctx, customerTypeKey, customerType)
+			}
+
+			// Extract role (for employees)
+			if role, ok := claims["role"].(string); ok {
+				ctx = context.WithValue(ctx, roleKey, role)
+			}
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// UserIDFromContext extracts authenticated user ID.
-func UserIDFromContext(ctx context.Context) (int, bool) {
-	id, ok := ctx.Value(userIDKey).(int)
+// CustomerIDFromContext extracts authenticated customer ID.
+func CustomerIDFromContext(ctx context.Context) (int, bool) {
+	id, ok := ctx.Value(customerIDKey).(int)
 	return id, ok
+}
+
+// CustomerTypeFromContext extracts customer type (employee or customer).
+func CustomerTypeFromContext(ctx context.Context) (string, bool) {
+	customerType, ok := ctx.Value(customerTypeKey).(string)
+	return customerType, ok
+}
+
+// RoleFromContext extracts customer role (for employees).
+func RoleFromContext(ctx context.Context) (string, bool) {
+	role, ok := ctx.Value(roleKey).(string)
+	return role, ok
+}
+
+// IsEmployee checks if the authenticated customer is an employee.
+func IsEmployee(ctx context.Context) bool {
+	customerType, ok := CustomerTypeFromContext(ctx)
+	return ok && customerType == "employee"
+}
+
+// IsCustomer checks if the authenticated customer is a customer.
+func IsCustomer(ctx context.Context) bool {
+	customerType, ok := CustomerTypeFromContext(ctx)
+	return ok && customerType == "customer"
+}
+
+// RequireEmployee middleware ensures only employees can access the route.
+func RequireEmployee(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !IsEmployee(r.Context()) {
+			http.Error(w, "forbidden: employee access required", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RequireCustomer middleware ensures only customers can access the route.
+func RequireCustomer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !IsCustomer(r.Context()) {
+			http.Error(w, "forbidden: customer access required", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RequireRole middleware ensures the employee has a specific role.
+func RequireRole(roles ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			role, ok := RoleFromContext(r.Context())
+			if !ok {
+				http.Error(w, "forbidden: role required", http.StatusForbidden)
+				return
+			}
+
+			for _, allowed := range roles {
+				if role == allowed {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
+		})
+	}
 }

@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/model"
@@ -20,247 +20,347 @@ func NewProductHandler(svc *service.ProductService) *ProductHandler {
 	return &ProductHandler{svc: svc}
 }
 
-// Create handles product creation with multiple images (Main + Variations)
-func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// 1. Parse Multipart Form (10MB limit)
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		utils.BadRequest(w, fmt.Errorf("invalid form data: %v", err))
-		return
-	}
-
-	// 2. Extract Basic Fields
-	catID, _ := strconv.ParseInt(r.FormValue("categoryId"), 10, 64)
-	subCatID, _ := strconv.ParseInt(r.FormValue("subCategoryId"), 10, 64)
-	subSubCatID, _ := strconv.ParseInt(r.FormValue("subSubCategoryId"), 10, 64)
-	brandID, _ := strconv.ParseInt(r.FormValue("brandId"), 10, 64)
-	unitPrice, _ := strconv.ParseFloat(r.FormValue("unitPrice"), 64)
-	minOrderQty, _ := strconv.ParseFloat(r.FormValue("minOrderQty"), 64)
-	currentStockQty, _ := strconv.ParseFloat(r.FormValue("currentStockQty"), 64)
-	stockAlertQty, _ := strconv.ParseFloat(r.FormValue("stockAlertQty"), 64)
-	discountAmount, _ := strconv.ParseFloat(r.FormValue("discountAmount"), 64)
-	taxAmount, _ := strconv.ParseFloat(r.FormValue("taxAmount"), 64)
-	shippingCost, _ := strconv.ParseFloat(r.FormValue("shippingCost"), 64)
-	hasVariation := r.FormValue("has_variation") == "true"
-
-	product := &model.Product{
-		Name:             r.FormValue("name"),
-		Description:      r.FormValue("description"),
-		CategoryID:       catID,
-		SubCategoryID:    subCatID,
-		SubSubCategoryID: subSubCatID,
-		BrandID:          brandID,
-		SKU:              r.FormValue("sku"),
-		Unit:             r.FormValue("unit"),
-		SearchTags:       r.FormValue("searchTags"),
-		UnitPrice:        unitPrice,
-		MinOrderQty:      minOrderQty,
-		CurrentStockQty:  currentStockQty,
-		StockAlertQty:    stockAlertQty,
-		DiscountType:     r.FormValue("discountType"),
-		DiscountAmount:   discountAmount,
-		TaxAmount:        taxAmount,
-		TaxCalculation:   r.FormValue("taxCalculation"),
-		ShippingCost:     shippingCost,
-		ShippingCostType: r.FormValue("shippingCostType"),
-		HasVariation:     r.FormValue("hasVariation") == "true",
-	}
-
-	// 3. Handle Main Product Thumbnail
-	file, header, err := r.FormFile("thumbnail")
-	if err == nil && file != nil {
-		defer file.Close()
-		saveDir := utils.GetProductFolderPath("")
-		// SaveMultipartImage is your utility function
-		path, err := utils.SaveMultipartImage(file, header, saveDir, product.Name+"_main")
-		if err != nil {
-			utils.ServerError(w, fmt.Errorf("failed to save main thumbnail: %w", err))
-			return
-		}
-		product.Thumbnail = path
-	}
-
-	// 4. Handle Variations & Their Thumbnails
-	if hasVariation {
-		var vars []model.ProductVariation
-		// Decode JSON string: '[{"name":"Red", "price":10}, ...]'
-		varsJSON := r.FormValue("variations")
-		if err := json.Unmarshal([]byte(varsJSON), &vars); err != nil {
-			utils.BadRequest(w, fmt.Errorf("invalid variations json: %v", err))
-			return
-		}
-
-		// Iterate variations to check for matching image files
-		for i, v := range vars {
-			// Convention: variation_thumb_0, variation_thumb_1, etc.
-			formKey := fmt.Sprintf("%s_%s_thumb", product.Name, v.SKU)
-
-			vFile, vHeader, vErr := r.FormFile(formKey)
-			if vErr == nil && vFile != nil {
-				defer vFile.Close()
-
-				// Naming convention: productName_variationSKU.jpg
-				uniqueName := fmt.Sprintf("%s_%s_thumb", product.Name, v.SKU)
-				saveDir := utils.GetProductFolderPath("")
-
-				vPath, err := utils.SaveMultipartImage(vFile, vHeader, saveDir, uniqueName)
-				if err == nil {
-					vars[i].Thumbnail = vPath
-				}
-			}
-		}
-		product.Variations = vars
-	}
-
-	// 5. Call Service
-	if err := h.svc.Create(r.Context(), product); err != nil {
-		utils.ServerError(w, err)
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusCreated, product)
-}
-
-func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-
-	p, err := h.svc.GetByID(r.Context(), id)
-	if err != nil {
-		// Differentiate between "not found" and "db error" ideally
-		utils.ServerError(w, err)
-		return
-	}
-	if p == nil {
-		utils.NotFound(w, fmt.Errorf("product not found"))
-		return
-	}
-
-	utils.WriteJSON(w, http.StatusOK, p)
-}
-
-// Update handles product modifications including images and variations.
-func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
-	// 1. Get Product ID from URL
-	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	if id == 0 {
-		utils.BadRequest(w, fmt.Errorf("invalid product id"))
-		return
-	}
-
-	// 2. Parse Multipart Form (Max 10MB)
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		utils.BadRequest(w, fmt.Errorf("invalid form data: %v", err))
-		return
-	}
-
-	// 3. Extract Basic Fields
-	// Note: We parse fields regardless of whether they changed.
-	// Frontend must send all fields for a PUT (replace) or just changed ones for PATCH logic.
-	// Here we assume a PUT-style update where the struct is fully populated.
-
-	catID, _ := strconv.ParseInt(r.FormValue("categoryId"), 10, 64)
-	subCatID, _ := strconv.ParseInt(r.FormValue("subCategoryId"), 10, 64)
-	subSubCatID, _ := strconv.ParseInt(r.FormValue("subSubCategoryId"), 10, 64)
-	brandID, _ := strconv.ParseInt(r.FormValue("brandId"), 10, 64)
-	unitPrice, _ := strconv.ParseFloat(r.FormValue("unitPrice"), 64)
-	minOrderQty, _ := strconv.ParseFloat(r.FormValue("minOrderQty"), 64)
-	currentStockQty, _ := strconv.ParseFloat(r.FormValue("currentStockQty"), 64)
-	stockAlertQty, _ := strconv.ParseFloat(r.FormValue("stockAlertQty"), 64)
-	discountAmount, _ := strconv.ParseFloat(r.FormValue("discountAmount"), 64)
-	taxAmount, _ := strconv.ParseFloat(r.FormValue("taxAmount"), 64)
-	shippingCost, _ := strconv.ParseFloat(r.FormValue("shippingCost"), 64)
-	hasVariation := r.FormValue("has_variation") == "true"
-
-	product := &model.Product{
-		Name:             r.FormValue("name"),
-		Description:      r.FormValue("description"),
-		CategoryID:       catID,
-		SubCategoryID:    subCatID,
-		SubSubCategoryID: subSubCatID,
-		BrandID:          brandID,
-		SKU:              r.FormValue("sku"),
-		Unit:             r.FormValue("unit"),
-		SearchTags:       r.FormValue("searchTags"),
-		UnitPrice:        unitPrice,
-		MinOrderQty:      minOrderQty,
-		CurrentStockQty:  currentStockQty,
-		StockAlertQty:    stockAlertQty,
-		DiscountType:     r.FormValue("discountType"),
-		DiscountAmount:   discountAmount,
-		TaxAmount:        taxAmount,
-		TaxCalculation:   r.FormValue("taxCalculation"),
-		ShippingCost:     shippingCost,
-		ShippingCostType: r.FormValue("shippingCostType"),
-		HasVariation:     r.FormValue("hasVariation") == "true",
-	}
-
-	// 4. Handle Main Product Thumbnail (Optional)
-	// Only update if a new file is provided.
-	file, header, err := r.FormFile("thumbnail")
-	if err == nil && file != nil {
-		defer file.Close()
-
-		// Use a unique name or overwrite existing SKU based name
-		// Ideally append timestamp to avoid caching issues on frontend
-		saveDir := utils.GetProductFolderPath("")
-		path, err := utils.SaveMultipartImage(file, header, saveDir, product.Name+"_main")
-		if err != nil {
-			utils.ServerError(w, fmt.Errorf("failed to save new thumbnail: %w", err))
-			return
-		}
-		product.Thumbnail = path
+func (h *ProductHandler) handleErr(w http.ResponseWriter, err error) {
+	fmt.Println("Error: ", err)
+	if strings.Contains(err.Error(), "already exists") {
+		utils.WriteJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 	} else {
-		// If no new file, keep the old URL sent by frontend (hidden field)
-		// or let the Repo handle "empty string means no change"
-		product.Thumbnail = r.FormValue("existing_thumbnail")
-	}
-
-	// 5. Handle Variations (Optional)
-	if hasVariation {
-		var vars []model.ProductVariation
-		varsJSON := r.FormValue("variations") // JSON string: '[{"id": 10, "name":"Red", ...}, ...]'
-
-		if err := json.Unmarshal([]byte(varsJSON), &vars); err != nil {
-			utils.BadRequest(w, fmt.Errorf("invalid variations json: %v", err))
-			return
-		}
-
-		// Iterate through variations to check for NEW images
-		for i, v := range vars {
-			// Check if a file exists for this index: variation_thumb_0, variation_thumb_1...
-			formKey := fmt.Sprintf("%s_%s_thumb", product.Name, v.SKU)
-
-			vFile, vHeader, vErr := r.FormFile(formKey)
-			if vErr == nil && vFile != nil {
-				defer vFile.Close()
-
-				uniqueName := fmt.Sprintf("%s_%s_thumb", product.Name, v.SKU)
-				saveDir := utils.GetProductFolderPath("")
-
-				vPath, err := utils.SaveMultipartImage(vFile, vHeader, saveDir, uniqueName)
-				if err == nil {
-					vars[i].Thumbnail = vPath
-				}
-			}
-			// If no file uploaded, vars[i].Thumbnail remains whatever was in the JSON
-			// (Client should send the existing URL if unchanged)
-		}
-		product.Variations = vars
-	}
-
-	// 6. Call Service Layer
-	if err := h.svc.Update(r.Context(), product); err != nil {
 		utils.ServerError(w, err)
+	}
+}
+
+// Create handles product creation (Multipart with Image)
+func (h *ProductHandler) Create(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10MB max
+		utils.BadRequest(w, err)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, product)
+	product := h.parseProductForm(r)
+
+	// Handle thumbnail
+	file, header, _ := r.FormFile("thumbnail")
+
+	err := h.svc.Create(r.Context(), product, file, header)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+
+	var response struct {
+		Error   bool           `json:"error"`
+		Message string         `json:"message"`
+		Product *model.Product `json:"product"`
+	}
+	response.Error = false
+	response.Message = "Product added successfully"
+	response.Product = product
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
+// Update handles product modification (Multipart with Image)
+func (h *ProductHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		utils.BadRequest(w, err)
+		return
+	}
+
+	product := h.parseProductForm(r)
+	product.ID = id
+
+	// Handle new image
+	file, header, _ := r.FormFile("thumbnail")
+
+	if err := h.svc.Update(r.Context(), product, file, header); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+
+	var response struct {
+		Error   bool          `json:"error"`
+		Message string        `json:"message"`
+		Product model.Product `json:"product"`
+	}
+	response.Error = false
+	response.Message = "Product updated successfully"
+	response.Product = *product
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+// Delete handles product removal
 func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+
+	var response struct {
+		Error   bool   `json:"error"`
+		Message string `json:"message"`
+	}
+	response.Error = false
+	response.Message = "Product deleted successfully"
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+// GetByID retrieves a single product
+func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+
+	product, err := h.svc.GetByID(r.Context(), id)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+// GetProducts retrieves products with optional filters
+func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
+	status := strings.TrimSpace(r.URL.Query().Get("status"))
+	published := strings.TrimSpace(r.URL.Query().Get("published"))
+	categoryID := strings.TrimSpace(r.URL.Query().Get("category_id"))
+	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+
+	filter := model.ProductFilter{
+		Status:     status,
+		Published:  published,
+		CategoryID: categoryID,
+		Page:       page,
+		Limit:      limit,
+	}
+
+	products, total, err := h.svc.GetProducts(r.Context(), filter)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+
+	var response struct {
+		Error    bool             `json:"error"`
+		Message  string           `json:"message"`
+		Products []*model.Product `json:"products"`
+		Total    int64            `json:"total"`
+		Page     int              `json:"page"`
+		Limit    int              `json:"limit"`
+	}
+	response.Error = false
+	response.Message = "Products retrieved"
+	response.Products = products
+	response.Total = total
+	response.Page = page
+	response.Limit = limit
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+// parseProductForm extracts product fields from multipart form
+func (h *ProductHandler) parseProductForm(r *http.Request) *model.Product {
+	product := &model.Product{}
+
+	// String pointers
+	if v := r.FormValue("added_by"); v != "" {
+		product.AddedBy = &v
+	}
+	if v := r.FormValue("name"); v != "" {
+		product.Name = &v
+	}
+	if v := r.FormValue("category_ids"); v != "" {
+		product.CategoryIDs = &v
+	}
+	if v := r.FormValue("category_id"); v != "" {
+		product.CategoryID = &v
+	}
+	if v := r.FormValue("sub_category_id"); v != "" {
+		product.SubCategoryID = &v
+	}
+	if v := r.FormValue("sub_sub_category_id"); v != "" {
+		product.SubSubCategoryID = &v
+	}
+	if v := r.FormValue("unit"); v != "" {
+		product.Unit = &v
+	}
+	if v := r.FormValue("digital_product_type"); v != "" {
+		product.DigitalProductType = &v
+	}
+	if v := r.FormValue("digital_file_ready"); v != "" {
+		product.DigitalFileReady = &v
+	}
+	if v := r.FormValue("digital_file_ready_storage_type"); v != "" {
+		product.DigitalFileReadyStorageType = &v
+	}
+	if v := r.FormValue("images"); v != "" {
+		product.Images = &v
+	}
+	if v := r.FormValue("thumbnail_storage_type"); v != "" {
+		product.ThumbnailStorageType = &v
+	}
+	if v := r.FormValue("preview_file"); v != "" {
+		product.PreviewFile = &v
+	}
+	if v := r.FormValue("preview_file_storage_type"); v != "" {
+		product.PreviewFileStorageType = &v
+	}
+	if v := r.FormValue("featured"); v != "" {
+		product.Featured = &v
+	}
+	if v := r.FormValue("flash_deal"); v != "" {
+		product.FlashDeal = &v
+	}
+	if v := r.FormValue("video_provider"); v != "" {
+		product.VideoProvider = &v
+	}
+	if v := r.FormValue("video_url"); v != "" {
+		product.VideoURL = &v
+	}
+	if v := r.FormValue("colors"); v != "" {
+		product.Colors = &v
+	}
+	if v := r.FormValue("attributes"); v != "" {
+		product.Attributes = &v
+	}
+	if v := r.FormValue("choice_options"); v != "" {
+		product.ChoiceOptions = &v
+	}
+	if v := r.FormValue("variation"); v != "" {
+		product.Variation = &v
+	}
+	if v := r.FormValue("digital_product_file_types"); v != "" {
+		product.DigitalProductFileTypes = &v
+	}
+	if v := r.FormValue("digital_product_extensions"); v != "" {
+		product.DigitalProductExtensions = &v
+	}
+	if v := r.FormValue("tax_type"); v != "" {
+		product.TaxType = &v
+	}
+	if v := r.FormValue("discount_type"); v != "" {
+		product.DiscountType = &v
+	}
+	if v := r.FormValue("details"); v != "" {
+		product.Details = &v
+	}
+	if v := r.FormValue("attachment"); v != "" {
+		product.Attachment = &v
+	}
+	if v := r.FormValue("meta_title"); v != "" {
+		product.MetaTitle = &v
+	}
+	if v := r.FormValue("meta_description"); v != "" {
+		product.MetaDescription = &v
+	}
+	if v := r.FormValue("meta_image"); v != "" {
+		product.MetaImage = &v
+	}
+	if v := r.FormValue("denied_note"); v != "" {
+		product.DeniedNote = &v
+	}
+	if v := r.FormValue("code"); v != "" {
+		product.Code = &v
+	}
+
+	// Int64 pointers
+	if v := r.FormValue("user_id"); v != "" {
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+			product.UserID = &i
+		}
+	}
+	if v := r.FormValue("brand_id"); v != "" {
+		if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+			product.BrandID = &i
+		}
+	}
+
+	// Int fields
+	if v := r.FormValue("min_qty"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			product.MinQty = i
+		}
+	} else {
+		product.MinQty = 1
+	}
+	if v := r.FormValue("minimum_order_qty"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			product.MinimumOrderQty = i
+		}
+	} else {
+		product.MinimumOrderQty = 1
+	}
+	if v := r.FormValue("current_stock"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil {
+			product.CurrentStock = &i
+		}
+	}
+
+	// Float64 fields
+	if v := r.FormValue("unit_price"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			product.UnitPrice = f
+		}
+	}
+	if v := r.FormValue("purchase_price"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			product.PurchasePrice = f
+		}
+	}
+	if v := r.FormValue("shipping_cost"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			product.ShippingCost = &f
+		}
+	}
+	if v := r.FormValue("temp_shipping_cost"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			product.TempShippingCost = &f
+		}
+	}
+
+	// String fields (non-pointer)
+	product.ProductType = r.FormValue("product_type")
+	if product.ProductType == "" {
+		product.ProductType = "physical"
+	}
+	product.ColorImage = r.FormValue("color_image")
+	product.Tax = r.FormValue("tax")
+	if product.Tax == "" {
+		product.Tax = "0.00"
+	}
+	product.TaxModel = r.FormValue("tax_model")
+	if product.TaxModel == "" {
+		product.TaxModel = "exclude"
+	}
+	product.Discount = r.FormValue("discount")
+	if product.Discount == "" {
+		product.Discount = "0.00"
+	}
+
+	// Boolean fields
+	product.Refundable = r.FormValue("refundable") != "0" && r.FormValue("refundable") != "false"
+	product.VariantProduct = r.FormValue("variant_product") == "1" || r.FormValue("variant_product") == "true"
+	product.Published = r.FormValue("published") == "1" || r.FormValue("published") == "true"
+	product.FreeShipping = r.FormValue("free_shipping") == "1" || r.FormValue("free_shipping") == "true"
+	product.Status = r.FormValue("status") != "0" && r.FormValue("status") != "false"
+	product.FeaturedStatus = r.FormValue("featured_status") != "0" && r.FormValue("featured_status") != "false"
+	product.RequestStatus = r.FormValue("request_status") == "1" || r.FormValue("request_status") == "true"
+
+	// Boolean pointers
+	if v := r.FormValue("multiply_qty"); v != "" {
+		b := v == "1" || v == "true"
+		product.MultiplyQty = &b
+	}
+	if v := r.FormValue("is_shipping_cost_updated"); v != "" {
+		b := v == "1" || v == "true"
+		product.IsShippingCostUpdated = &b
+	}
+
+	return product
 }

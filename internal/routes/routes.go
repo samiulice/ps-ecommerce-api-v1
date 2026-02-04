@@ -37,6 +37,8 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 		// Protected/Resource Routes
 		r.Mount("/categories", categoryRoutes(handlers.CategoryHandler))
 		r.Mount("/products", productRoutes(handlers.ProductHandler))
+		r.Mount("/customers", customerRoutes(handlers.CustomerHandler))
+		r.Mount("/orders", orderRoutes(handlers.OrderHandler))
 	})
 
 	return mux

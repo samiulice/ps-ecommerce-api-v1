@@ -6,13 +6,15 @@ import (
 )
 
 // root path: /products
-func productRoutes(productHandler *handler.ProductHandler) *chi.Mux {
+func productRoutes(h *handler.ProductHandler) *chi.Mux {
 	mux := chi.NewRouter()
 
-	mux.Post("/", productHandler.Create)
-	mux.Get("/{id}", productHandler.GetByID)
-	mux.Put("/{id}", productHandler.Update) 
-	mux.Delete("/{id}", productHandler.Delete)
+	mux.Get("/list", h.GetProducts)
+
+	mux.Post("/new", h.Create)
+	mux.Get("/get/{id}", h.GetByID)
+	mux.Put("/update/{id}", h.Update)
+	mux.Delete("/delete/{id}", h.Delete)
 
 	return mux
 }

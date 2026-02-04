@@ -10,14 +10,18 @@ import (
 type ServiceRepository struct {
 	AuthService     *AuthService
 	CategoryService *CategoryService
-	ProductService *ProductService
+	ProductService  *ProductService
+	CustomerService *CustomerService
+	OrderService    *OrderService
 }
 
 // NewServiceRepository initializes all repositories with a shared connection pool
 func NewServiceRepository(dbrepo *repository.DBRepository, rdb *redis.Client, config *config.Config) *ServiceRepository {
 	return &ServiceRepository{
-		AuthService:     NewAuthService(dbrepo.UserRepository, dbrepo.RedisTokenRepository, config.JWT.Access.SecretKey),
+		AuthService:     NewAuthService(dbrepo.EmployeeRepository, dbrepo.CustomerRepository, dbrepo.RedisTokenRepository, config.JWT.Access.SecretKey),
 		CategoryService: NewCategoryService(dbrepo.CategoryRepo),
-		ProductService: NewProductService(dbrepo.ProductRepo, rdb),
+		ProductService:  NewProductService(dbrepo.ProductRepo),
+		CustomerService: NewCustomerService(dbrepo.CustomerRepository),
+		OrderService:    NewOrderService(dbrepo.OrderRepo, dbrepo.CustomerRepository),
 	}
 }
