@@ -8,6 +8,7 @@ import (
 
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type OrderService struct {
@@ -40,12 +41,17 @@ func (s *OrderService) PlaceOrder(ctx context.Context, req model.CreateOrderRequ
 			FName:    model.ToNullString(req.Customer.Name),
 			Phone:    req.Customer.Mobile,
 			Email:    model.ToNullString(req.Customer.Email),
-			Password: req.Customer.Password,
 			City:     model.ToNullString(req.Customer.City),
 			IsActive: true,
 		}
 
-		err := s.customerRepo.Create(ctx, newCustomer)
+		//Generate password hash
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Customer.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		newCustomer.Password = string(hashedPassword)
+		err = s.customerRepo.Create(ctx, newCustomer)
 		if err != nil {
 			// Don't fail the order if account creation fails, just log it
 			fmt.Printf("Warning: Failed to create customer account: %v\n", err)

@@ -35,7 +35,7 @@ func (h *OrderHandler) handleErr(w http.ResponseWriter, err error) {
 // PlaceOrder handles POST /orders/new - public endpoint for checkout
 func (h *OrderHandler) PlaceOrder(w http.ResponseWriter, r *http.Request) {
 	var req model.CreateOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := utils.ReadJSON(w, r, &req); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}
