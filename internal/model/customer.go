@@ -88,6 +88,13 @@ type CustomerResponse struct {
 	ReferralCode    string  `json:"referral_code,omitempty"`
 	AppLanguage     string  `json:"app_language"`
 	CreatedAt       string  `json:"created_at,omitempty"`
+	// Address info
+	StreetAddress string `json:"street_address,omitempty"`
+	Country       string `json:"country,omitempty"`
+	City          string `json:"city,omitempty"`
+	Zip           string `json:"zip,omitempty"`
+	HouseNo       string `json:"house_no,omitempty"`
+	ApartmentNo   string `json:"apartment_no,omitempty"`
 }
 
 // ToResponse converts Customer to a safe CustomerResponse.
@@ -124,6 +131,25 @@ func (u *Customer) ToResponse() *CustomerResponse {
 	}
 	if u.CreatedAt.Valid {
 		resp.CreatedAt = u.CreatedAt.Time.Format(time.RFC3339)
+	}
+	// Address info
+	if u.StreetAddress.Valid {
+		resp.StreetAddress = u.StreetAddress.String
+	}
+	if u.Country.Valid {
+		resp.Country = u.Country.String
+	}
+	if u.City.Valid {
+		resp.City = u.City.String
+	}
+	if u.Zip.Valid {
+		resp.Zip = u.Zip.String
+	}
+	if u.HouseNo.Valid {
+		resp.HouseNo = u.HouseNo.String
+	}
+	if u.ApartmentNo.Valid {
+		resp.ApartmentNo = u.ApartmentNo.String
 	}
 	return resp
 }

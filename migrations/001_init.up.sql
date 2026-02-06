@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS employees (
     name          TEXT NOT NULL DEFAULT '',
     mobile        VARCHAR(100) NOT NULL DEFAULT '',
     role          VARCHAR(100) NOT NULL DEFAULT '',
-    branch_id INTEGER NOT NULL DEFAULT 1;
+    branch_id INTEGER NOT NULL DEFAULT 1,
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     is_verified   BOOLEAN NOT NULL DEFAULT FALSE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -44,6 +44,6 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_employee_id ON refresh_tokens(employee_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 
--- INSERT INTO public.employees
--- (id, "uuid", email, password_hash, "name", mobile, "role", is_active, is_verified, created_at, updated_at)
--- VALUES(1, 'b5046bdb-7b0a-41da-9c5b-9b300b09991a'::uuid, 'noorsupermart@gmail.com', '$2a$10$Dcwf7EbwRiUDfKzuc1i8Lu7POM0BkPEhJiApCD7ZQLLhYHlt8sM3W', '', '', '', true, true, '2026-02-02 05:43:38.458', '2026-02-02 05:43:38.458');
+INSERT INTO public.employees
+(id, "uuid", email, password_hash, "name", mobile, "role", is_active, is_verified, created_at, updated_at)
+VALUES(1, 'b5046bdb-7b0a-41da-9c5b-9b300b09991a'::uuid, 'noorsupermart@gmail.com', '$2a$10$Dcwf7EbwRiUDfKzuc1i8Lu7POM0BkPEhJiApCD7ZQLLhYHlt8sM3W', '', '', '', true, true, '2026-02-02 05:43:38.458', '2026-02-02 05:43:38.458');

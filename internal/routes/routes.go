@@ -33,8 +33,6 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 	mux.Route("/api/v1", func(r chi.Router) {
 		// Public Routes
 		r.Mount("/auth", authRoutes(handlers.AuthHandler, cfg.JWT.Access.SecretKey))
-
-		// Protected/Resource Routes
 		r.Mount("/categories", categoryRoutes(handlers.CategoryHandler))
 		r.Mount("/products", productRoutes(handlers.ProductHandler))
 		r.Mount("/customers", customerRoutes(handlers.CustomerHandler))

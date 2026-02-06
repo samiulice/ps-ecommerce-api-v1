@@ -10,6 +10,7 @@ import (
 func customerRoutes(h *handler.CustomerHandler) *chi.Mux {
 	mux := chi.NewRouter()
 
+	
 	// POST /customers - Create a new customer
 	mux.Post("/", h.Create)
 

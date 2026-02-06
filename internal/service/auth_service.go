@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/repository"
+	"github.com/projuktisheba/pse-api-v1/pkg/identity"
 	"github.com/projuktisheba/pse-api-v1/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,7 +18,7 @@ import (
 // AuthService handles authentication workflows for both employees and customers.
 type AuthService struct {
 	employees *repository.EmployeeRepository
-	customers     *repository.CustomerRepository
+	customers *repository.CustomerRepository
 	tokens    *repository.RedisTokenRepo
 	secret    string
 }
@@ -26,7 +27,7 @@ type AuthService struct {
 func NewAuthService(e *repository.EmployeeRepository, u *repository.CustomerRepository, t *repository.RedisTokenRepo, secret string) *AuthService {
 	return &AuthService{
 		employees: e,
-		customers:     u,
+		customers: u,
 		tokens:    t,
 		secret:    secret,
 	}
@@ -169,9 +170,15 @@ func (s *AuthService) CustomerLogin(ctx context.Context, emailOrPhone, password 
 	var customer *model.Customer
 	var err error
 
-	// Try to find by email first, then by phone
-	customer, err = s.customers.GetByEmail(ctx, emailOrPhone)
-	if err != nil {
+	// Find by email if isEmail is true
+	isEmail := identity.IsEmail(emailOrPhone)
+
+	if isEmail {
+		customer, err = s.customers.GetByEmail(ctx, emailOrPhone)
+		if err != nil {
+			return nil, "", "", errors.New("invalid credentials")
+		}
+	} else {
 		customer, err = s.customers.GetByPhone(ctx, emailOrPhone)
 		if err != nil {
 			return nil, "", "", errors.New("invalid credentials")

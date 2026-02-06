@@ -132,10 +132,10 @@ func (h *AuthHandler) EmployeeMe(w http.ResponseWriter, r *http.Request) {
 	role, _ := middleware.RoleFromContext(r.Context())
 
 	_ = utils.WriteJSON(w, http.StatusOK, map[string]any{
-		"error":     false,
+		"error":         false,
 		"customer_id":   uid,
 		"customer_type": customerType,
-		"role":      role,
+		"role":          role,
 	})
 }
 
@@ -164,13 +164,13 @@ func (h *AuthHandler) CustomerRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := struct {
-		Error   bool                `json:"error"`
-		Message string              `json:"message"`
-		Customer    *model.CustomerResponse `json:"customer"`
+		Error    bool                    `json:"error"`
+		Message  string                  `json:"message"`
+		Customer *model.CustomerResponse `json:"customer"`
 	}{
-		Error:   false,
-		Message: "Customer registration successful",
-		Customer:    customer.ToResponse(),
+		Error:    false,
+		Message:  "Customer registration successful",
+		Customer: customer.ToResponse(),
 	}
 	utils.WriteJSON(w, http.StatusCreated, response)
 }
@@ -196,15 +196,15 @@ func (h *AuthHandler) CustomerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := struct {
-		Error        bool                `json:"error"`
-		Message      string              `json:"message"`
-		Customer         *model.CustomerResponse `json:"customer"`
-		AccessToken  string              `json:"access_token"`
-		RefreshToken string              `json:"refresh_token"`
+		Error        bool                    `json:"error"`
+		Message      string                  `json:"message"`
+		Customer     *model.CustomerResponse `json:"customer"`
+		AccessToken  string                  `json:"access_token"`
+		RefreshToken string                  `json:"refresh_token"`
 	}{
 		Error:        false,
 		Message:      "Login successful",
-		Customer:         customer.ToResponse(),
+		Customer:     customer.ToResponse(),
 		AccessToken:  access,
 		RefreshToken: refresh,
 	}
@@ -250,7 +250,7 @@ func (h *AuthHandler) CustomerMe(w http.ResponseWriter, r *http.Request) {
 	customerType, _ := middleware.CustomerTypeFromContext(r.Context())
 
 	_ = utils.WriteJSON(w, http.StatusOK, map[string]any{
-		"error":     false,
+		"error":         false,
 		"customer_id":   uid,
 		"customer_type": customerType,
 	})

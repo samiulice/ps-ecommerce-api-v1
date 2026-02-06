@@ -306,7 +306,6 @@ func (h *CategoryHandler) GetTree(w http.ResponseWriter, r *http.Request) {
 	response.Error = false
 	response.Message = "Categories listed successfully"
 	response.Categories = tree
-	fmt.Printf("%+v\n", response)
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 

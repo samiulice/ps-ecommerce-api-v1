@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS customers (
     referred_by             INTEGER,
     app_language            VARCHAR(191) NOT NULL DEFAULT 'en',
 
-    CONSTRAINT customers_email_unique UNIQUE (email, brand_id)
+    CONSTRAINT customers_email_unique UNIQUE (email)
 );
 
 -- Index for phone lookups (commonly queried)

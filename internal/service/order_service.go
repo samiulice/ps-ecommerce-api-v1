@@ -180,9 +180,9 @@ func (s *OrderService) GetOrderByOrderNumber(ctx context.Context, orderNumber st
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Printf("%s  %s\n\n", order.OrderStatus, order.PaymentStatus)
 	response := order.ToOrderResponse()
-
+	fmt.Printf("%s  %s\n\n", response.OrderStatus, response.PaymentStatus)
 	var itemResponses []model.OrderItemResponse
 	for _, item := range items {
 		itemResponses = append(itemResponses, item.ToOrderItemResponse())
