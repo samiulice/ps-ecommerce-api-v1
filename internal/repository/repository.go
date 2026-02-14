@@ -13,6 +13,8 @@ type DBRepository struct {
 	CategoryRepo         *CategoryRepo
 	ProductRepo          *ProductRepo
 	OrderRepo            *OrderRepo
+	SiteSettingsRepo     *SiteSettingsRepo
+	BranchRepo           *BranchRepo
 }
 
 // NewDBRepository initializes all repositories with a shared connection pool
@@ -24,5 +26,7 @@ func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 		CategoryRepo:         NewCategoryRepo(db),
 		ProductRepo:          NewProductRepo(db),
 		OrderRepo:            NewOrderRepo(db),
+		SiteSettingsRepo:     NewSiteSettingsRepo(db),
+		BranchRepo:           NewBranchRepo(db),
 	}
 }

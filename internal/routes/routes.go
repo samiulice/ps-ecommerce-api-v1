@@ -37,6 +37,8 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 		r.Mount("/products", productRoutes(handlers.ProductHandler))
 		r.Mount("/customers", customerRoutes(handlers.CustomerHandler))
 		r.Mount("/orders", orderRoutes(handlers.OrderHandler))
+		r.Mount("/site-settings", siteSettingsRoutes(handlers.SiteSettingsHandler))
+		r.Mount("/branches", branchRoutes(handlers.BranchHandler))
 	})
 
 	return mux
@@ -59,14 +61,22 @@ func setupMiddlewares(mux *chi.Mux, cfg *config.Config, rdb *redis.Client) {
 	mux.Use(chimiddleware.Logger)
 	mux.Use(chimiddleware.Recoverer)
 	mux.Use(chimiddleware.Timeout(cfg.Server.ReadTimeout))
-
+	log.Println("Global middleware enabled")
 	// Rate Limiter
 	middleware.AttachRateLimiter(mux, middleware.RateLimiterConfig{
-		Requests: 100,
-		Duration: time.Minute,
+		Requests: cfg.Server.MaxRequests,
+		Duration: cfg.Server.RequestWindow,
 		Redis:    rdb,
 	})
-	log.Println("Global middleware and rate limiter enabled")
+	rps := float64(cfg.Server.MaxRequests) / cfg.Server.RequestWindow.Seconds()
+
+	log.Printf(
+		"rate limiter active: %d requests per %s (%.2f req/sec)",
+		cfg.Server.MaxRequests,
+		cfg.Server.RequestWindow,
+		rps,
+	)
+
 }
 
 // setupStaticFiles serves static files from ./assets/public

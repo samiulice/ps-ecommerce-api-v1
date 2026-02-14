@@ -5,23 +5,26 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"mime/multipart"
+	"path/filepath"
 	"strings"
 
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/repository"
+	"github.com/projuktisheba/pse-api-v1/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
 // Common validation errors.
 var (
-	ErrCustomerNotFound       = errors.New("customer not found")
+	ErrCustomerNotFound   = errors.New("customer not found")
 	ErrInvalidPhone       = errors.New("phone number is required")
 	ErrInvalidEmail       = errors.New("invalid email format")
 	ErrInvalidPassword    = errors.New("password must be at least 6 characters")
 	ErrEmailAlreadyExists = errors.New("email already exists")
 	ErrPhoneAlreadyExists = errors.New("phone number already exists")
-	ErrCustomerInactive       = errors.New("customer account is inactive")
-	ErrCustomerBlocked        = errors.New("customer account is temporarily blocked")
+	ErrCustomerInactive   = errors.New("customer account is inactive")
+	ErrCustomerBlocked    = errors.New("customer account is temporarily blocked")
 )
 
 // CustomerService handles business logic for customer operations.
@@ -34,16 +37,20 @@ func NewCustomerService(repo *repository.CustomerRepository) *CustomerService {
 	return &CustomerService{repo: repo}
 }
 
-// Create validates and creates a new customer.
-func (s *CustomerService) Create(ctx context.Context, req *model.CustomerCreateRequest) (*model.Customer, error) {
-	// Validate required fields
-	if err := s.validateCreateRequest(req); err != nil {
-		return nil, err
+// Create validates and creates a new customer (Multipart).
+func (s *CustomerService) Create(ctx context.Context, c *model.Customer, file multipart.File, header *multipart.FileHeader) (*model.Customer, error) {
+	// 1. Basic Validation
+	if c.Phone == "" {
+		return nil, ErrInvalidPhone
+	}
+	// Password is required for creation
+	if len(c.Password) != 0 && len(c.Password) < 6 {
+		return nil, ErrInvalidPassword
 	}
 
-	// Check if email already exists
-	if req.Email != "" {
-		exists, err := s.repo.ExistsByEmail(ctx, req.Email)
+	// 2. Check Duplicates
+	if c.Email.Valid && c.Email.String != "" {
+		exists, err := s.repo.ExistsByEmail(ctx, c.Email.String)
 		if err != nil {
 			return nil, err
 		}
@@ -51,9 +58,7 @@ func (s *CustomerService) Create(ctx context.Context, req *model.CustomerCreateR
 			return nil, ErrEmailAlreadyExists
 		}
 	}
-
-	// Check if phone already exists
-	exists, err := s.repo.ExistsByPhone(ctx, req.Phone)
+	exists, err := s.repo.ExistsByPhone(ctx, c.Phone)
 	if err != nil {
 		return nil, err
 	}
@@ -61,31 +66,125 @@ func (s *CustomerService) Create(ctx context.Context, req *model.CustomerCreateR
 		return nil, ErrPhoneAlreadyExists
 	}
 
-	// Hash password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	// 3. Hash Password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(c.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	c.Password = string(hashedPassword)
+
+	// 4. Handle Image URL generation
+	if file != nil {
+		// Use Phone or Name as the unique identifier for the filename
+		ext := strings.ToLower(filepath.Ext(header.Filename))
+		c.Image = utils.GetCustomerImageURL(c.Phone, ext)
+	} else {
+		c.Image = "def.png"
+	}
+
+	// Set Defaults
+	c.AppLanguage = "en"
+
+	// 5. Insert into Database
+	if err := s.repo.Create(ctx, c); err != nil {
+		return nil, err
+	}
+
+	// 6. Save Image File (if database insert succeeded)
+	if file != nil {
+		defer file.Close()
+		_, err := utils.SaveMultipartImage(file, header, utils.GetCustomerFolderPath(""), c.Phone)
+		if err != nil {
+			// Optional: Log error, but typically we return it so the controller knows
+			return nil, err
+		}
+	}
+
+	return c, nil
+}
+
+// Update validates and updates an existing customer (Multipart).
+func (s *CustomerService) Update(ctx context.Context, c *model.Customer, file multipart.File, header *multipart.FileHeader) (*model.Customer, error) {
+	if c.ID <= 0 {
+		return nil, errors.New("customer ID is required")
+	}
+
+	// 1. Fetch Existing Customer
+	existing, err := s.GetByID(ctx, c.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Build customer entity
-	customer := &model.Customer{
-		Name:        toNullString(req.Name),
-		FName:       toNullString(req.FName),
-		LName:       toNullString(req.LName),
-		Phone:       req.Phone,
-		Email:       toNullString(req.Email),
-		Password:    string(hashedPassword),
-		Image:       "def.png",
-		IsActive:    true,
-		AppLanguage: "en",
+	// 2. Validate Uniqueness (if Phone/Email changed)
+	if c.Phone != existing.Phone {
+		exists, err := s.repo.ExistsByPhone(ctx, c.Phone)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, ErrPhoneAlreadyExists
+		}
+	}
+	// Note: Add Email uniqueness check here if needed
+
+	// 3. Handle Password
+	// If new password is provided, hash it. Otherwise, keep the old one.
+	if c.Password != "" {
+		if len(c.Password) < 6 {
+			return nil, ErrInvalidPassword
+		}
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(c.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, err
+		}
+		c.Password = string(hashedPassword)
+	} else {
+		c.Password = existing.Password
 	}
 
-	// Create customer in database
-	if err := s.repo.Create(ctx, customer); err != nil {
+	// 4. Handle Image URL
+	if file != nil {
+		ext := strings.ToLower(filepath.Ext(header.Filename))
+		c.Image = utils.GetCustomerImageURL(c.Phone, ext)
+	} else {
+		c.Image = existing.Image // Keep existing image if no new file uploaded
+	}
+
+	// 5. Update Database
+	if err := s.repo.Update(ctx, c); err != nil {
 		return nil, err
 	}
 
-	return customer, nil
+	// 6. Save New Image & Cleanup Old
+	if file != nil {
+		defer file.Close()
+		_, err := utils.SaveMultipartImage(file, header, utils.GetCustomerFolderPath(""), c.Phone)
+		if err != nil {
+			return nil, err
+		}
+
+		// Delete old image if it wasn't the default and it's different
+		if existing.Image != "def.png" && existing.Image != c.Image {
+			utils.DeleteFile(utils.GetCustomerFolderPath(filepath.Base(existing.Image)))
+		}
+	}
+
+	return c, nil
+}
+
+// ListCustomers retrieves customers with filters
+func (s *CustomerService) ListCustomers(ctx context.Context, filter model.CustomerFilter) ([]*model.CustomerResponse, int64, error) {
+	customers, total, err := s.repo.List(ctx, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var responses []*model.CustomerResponse
+	for _, customer := range customers {
+		responses = append(responses, customer.ToResponse())
+	}
+
+	return responses, total, nil
 }
 
 // GetByID retrieves a customer by ID.
@@ -105,71 +204,10 @@ func (s *CustomerService) GetByID(ctx context.Context, id int64) (*model.Custome
 	return customer, nil
 }
 
-// Update validates and updates an existing customer.
-func (s *CustomerService) Update(ctx context.Context, id int64, req *model.CustomerUpdateRequest) (*model.Customer, error) {
-	// Fetch existing customer
-	customer, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			return nil, ErrCustomerNotFound
-		}
-		return nil, err
-	}
-
-	// Update fields if provided
-	if req.Name != "" {
-		customer.Name = toNullString(req.Name)
-	}
-	if req.FName != "" {
-		customer.FName = toNullString(req.FName)
-	}
-	if req.LName != "" {
-		customer.LName = toNullString(req.LName)
-	}
-	if req.Phone != "" {
-		// Check if new phone conflicts with another customer
-		if req.Phone != customer.Phone {
-			exists, err := s.repo.ExistsByPhone(ctx, req.Phone)
-			if err != nil {
-				return nil, err
-			}
-			if exists {
-				return nil, ErrPhoneAlreadyExists
-			}
-		}
-		customer.Phone = req.Phone
-	}
-	if req.Image != "" {
-		customer.Image = req.Image
-	}
-	if req.StreetAddress != "" {
-		customer.StreetAddress = toNullString(req.StreetAddress)
-	}
-	if req.Country != "" {
-		customer.Country = toNullString(req.Country)
-	}
-	if req.City != "" {
-		customer.City = toNullString(req.City)
-	}
-	if req.Zip != "" {
-		customer.Zip = toNullString(req.Zip)
-	}
-	if req.HouseNo != "" {
-		customer.HouseNo = toNullString(req.HouseNo)
-	}
-	if req.ApartmentNo != "" {
-		customer.ApartmentNo = toNullString(req.ApartmentNo)
-	}
-	if req.AppLanguage != "" {
-		customer.AppLanguage = req.AppLanguage
-	}
-
+// UpdateAccountStatus updates an existing customer account status.
+func (s *CustomerService) UpdateAccountStatus(ctx context.Context, accountStatus bool, customerId int64) error {
 	// Save updates
-	if err := s.repo.Update(ctx, customer); err != nil {
-		return nil, err
-	}
-
-	return customer, nil
+	return s.repo.UpdateAccountStatus(ctx, accountStatus, customerId)
 }
 
 // Delete removes a customer by ID.

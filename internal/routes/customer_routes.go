@@ -11,17 +11,23 @@ func customerRoutes(h *handler.CustomerHandler) *chi.Mux {
 	mux := chi.NewRouter()
 
 	
-	// POST /customers - Create a new customer
-	mux.Post("/", h.Create)
+	// GET /customers/list - get all customers
+	mux.Get("/list", h.ListCustomers)
+	
+	// POST /customers/new - Create a new customer
+	mux.Post("/new", h.Create)
 
-	// GET /customers/{id} - Get customer by ID
-	mux.Get("/{id}", h.GetByID)
+	// GET /customers/profile/{id} - Get customer by ID
+	mux.Get("/profile/{id}", h.GetByID)
 
-	// PUT /customers/{id} - Update customer by ID
-	mux.Put("/{id}", h.Update)
+	// PUT /customers/update/{id} - Update customer by ID
+	mux.Put("/update/{id}", h.Update)
 
-	// DELETE /customers/{id} - Delete customer by ID
-	mux.Delete("/{id}", h.Delete)
+	// PUT /customers/update/account/status/{id} - Update customer by ID, query parameter {is_active=true}
+	mux.Put("/update/account/status/{id}", h.UpdateAccountStatus)
+
+	// DELETE /customers/delete/{id} - Delete customer by ID
+	mux.Delete("/delete/{id}", h.Delete)
 
 	return mux
 }

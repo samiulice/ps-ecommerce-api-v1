@@ -13,6 +13,8 @@ type ServiceRepository struct {
 	ProductService  *ProductService
 	CustomerService *CustomerService
 	OrderService    *OrderService
+	SiteSettingsService *SiteSettingsService
+	BranchService *BranchService
 }
 
 // NewServiceRepository initializes all repositories with a shared connection pool
@@ -23,5 +25,7 @@ func NewServiceRepository(dbrepo *repository.DBRepository, rdb *redis.Client, co
 		ProductService:  NewProductService(dbrepo.ProductRepo),
 		CustomerService: NewCustomerService(dbrepo.CustomerRepository),
 		OrderService:    NewOrderService(dbrepo.OrderRepo, dbrepo.CustomerRepository),
+		SiteSettingsService: NewSiteSettingsService(dbrepo.SiteSettingsRepo),
+		BranchService: NewBranchService(dbrepo.BranchRepo),
 	}
 }

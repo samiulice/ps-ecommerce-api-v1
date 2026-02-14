@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -53,6 +54,7 @@ func (r *CustomerRepository) Create(ctx context.Context, u *model.Customer) erro
 	if isCustomerUniqueViolation(err) {
 		return fmt.Errorf("customer with email '%s' already exists", u.Email.String)
 	}
+	fmt.Println("error: ", err)
 	return err
 }
 
@@ -180,6 +182,20 @@ func (r *CustomerRepository) Update(ctx context.Context, u *model.Customer) erro
 	return err
 }
 
+// UpdateStatus updates an existing customer status in the database.
+func (r *CustomerRepository) UpdateAccountStatus(ctx context.Context, status bool, customerId int64) error {
+	query := `
+		UPDATE customers SET
+			is_active = $1,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+		RETURNING updated_at`
+
+	_, err := r.db.Exec(ctx, query, status, customerId)
+
+	return err
+}
+
 // Delete removes a customer from the database by ID.
 func (r *CustomerRepository) Delete(ctx context.Context, id int64) error {
 	tag, err := r.db.Exec(ctx, "DELETE FROM customers WHERE id = $1", id)
@@ -264,4 +280,107 @@ func (r *CustomerRepository) ExistsByPhone(ctx context.Context, phone string) (b
 	query := `SELECT EXISTS(SELECT 1 FROM customers WHERE phone = $1)`
 	err := r.db.QueryRow(ctx, query, phone).Scan(&exists)
 	return exists, err
+}
+
+// List retrieves customers with filters and pagination.
+func (r *CustomerRepository) List(ctx context.Context, filter model.CustomerFilter) ([]model.Customer, int64, error) {
+	var conditions []string
+	var args []interface{}
+	argIndex := 1
+
+	// 1. Build Search Filter
+	if filter.Search != "" {
+		searchPattern := "%" + filter.Search + "%"
+		// We use the same argument index ($1) for name, phone, and email
+		// so we only append to args ONCE.
+		conditions = append(conditions, fmt.Sprintf(
+			"(name ILIKE $%d OR phone ILIKE $%d OR email ILIKE $%d)",
+			argIndex, argIndex, argIndex,
+		))
+		args = append(args, searchPattern)
+		argIndex++
+	}
+
+	// 2. Build account status filter
+	if filter.CheckAccountStatus {
+		conditions = append(conditions, fmt.Sprintf("is_active=$%d", argIndex))
+		args = append(args, filter.IsActive)
+		argIndex++
+	}
+
+	// 3. Build WHERE Clause
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	// 4. Count Total Records
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM customers %s", whereClause)
+	var total int64
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count customers: %w", err)
+	}
+
+	// 4. Handle Pagination Defaults
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := (filter.Page - 1) * limit
+	if offset < 0 {
+		offset = 0
+	}
+
+	// 5. Query Customers
+	// Note: We explicitly select all columns to match the Scan destination
+	query := fmt.Sprintf(`
+		SELECT 
+			id, name, f_name, l_name, phone, image, email, email_verified_at,
+			password, remember_token, created_at, updated_at,
+			street_address, country, city, zip, house_no, apartment_no,
+			cm_firebase_token, is_active, payment_card_last_four, payment_card_brand,
+			payment_card_fawry_token, login_medium, social_id, is_phone_verified,
+			temporary_token, is_email_verified, wallet_balance, loyalty_point,
+			login_hit_count, is_temp_blocked, temp_block_time, referral_code,
+			referred_by, app_language
+		FROM customers
+		%s
+		ORDER BY id DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, argIndex, argIndex+1)
+
+	// Append limit and offset to args
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query customers: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []model.Customer
+	for rows.Next() {
+		var u model.Customer
+		err := rows.Scan(
+			&u.ID, &u.Name, &u.FName, &u.LName, &u.Phone, &u.Image, &u.Email, &u.EmailVerifiedAt,
+			&u.Password, &u.RememberToken, &u.CreatedAt, &u.UpdatedAt,
+			&u.StreetAddress, &u.Country, &u.City, &u.Zip, &u.HouseNo, &u.ApartmentNo,
+			&u.CMFirebaseToken, &u.IsActive, &u.PaymentCardLastFour, &u.PaymentCardBrand,
+			&u.PaymentCardFawryToken, &u.LoginMedium, &u.SocialID, &u.IsPhoneVerified,
+			&u.TemporaryToken, &u.IsEmailVerified, &u.WalletBalance, &u.LoyaltyPoint,
+			&u.LoginHitCount, &u.IsTempBlocked, &u.TempBlockTime, &u.ReferralCode,
+			&u.ReferredBy, &u.AppLanguage,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan customer: %w", err)
+		}
+		customers = append(customers, u)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating customer rows: %w", err)
+	}
+
+	return customers, total, nil
 }

@@ -32,10 +32,12 @@ type DBConfig struct {
 
 // ServerConfig holds HTTP server tuning options.
 type ServerConfig struct {
-	Port         int
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-	IdleTimeout  time.Duration
+	Port          int
+	ReadTimeout   time.Duration
+	WriteTimeout  time.Duration
+	IdleTimeout   time.Duration
+	MaxRequests   int
+	RequestWindow time.Duration
 }
 
 // AppConfig holds app metadata and feature flags.

@@ -44,7 +44,21 @@ type Customer struct {
 	ReferredBy            sql.NullInt32   `json:"referred_by,omitempty" db:"referred_by"`
 	AppLanguage           string          `json:"app_language" db:"app_language"`
 }
+// CustomerFilter defines the criteria for querying customers.
+type CustomerFilter struct {
+    // Search matches against name, phone, or email
+    Search string `json:"search" query:"search"`
 
+	// Status matches against the account status
+	CheckAccountStatus bool `json:"check_account_status" query:"check_account_status"`
+	IsActive bool `json:"is_active" query:"is_active"`
+    
+    // Page number for pagination (starts at 1)
+    Page int `json:"page" query:"page"`
+    
+    // Limit is the number of items per page
+    Limit int `json:"limit" query:"limit"`
+}
 // CustomerCreateRequest represents the payload for creating a new customer.
 type CustomerCreateRequest struct {
 	Name     string `json:"name"`

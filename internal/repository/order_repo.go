@@ -296,7 +296,7 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 			created_at, updated_at, delivered_at, cancelled_at, cancelled_reason
 		FROM orders
 		%s
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, order_number DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, argIndex, argIndex+1)
 

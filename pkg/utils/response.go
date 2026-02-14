@@ -11,7 +11,7 @@ import (
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 )
 
-// readJSON read json from request body into data. It accepts a sinle JSON of 1MB max size value in the body
+// readJSON read json from request body into data. It accepts a single JSON of 1MB max size value in the body
 func ReadJSON(w http.ResponseWriter, r *http.Request, data any) error {
 	maxBytes := 1048576 //maximum allowable bytes is 1MB
 

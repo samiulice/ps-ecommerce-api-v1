@@ -80,7 +80,35 @@ func GetProductThumbnailURL(filename, ext string) string {
 	filename = sanitizeFilename(filename)
 	return strings.Join([]string{"public", "images", "products", filename + ext}, "/")
 }
+// GetCustomerFolderPath constructs the full file path for a customer image.
+// It accepts a filename, sanitizes it, and appends it to the customer directory.
+// If the filename is empty, it returns the directory path itself.
+// It also ensures the directory exists.
+func GetCustomerFolderPath(filename string) string {
+	// Define the specific subdirectory for customers
+	basePath := filepath.Join(".", "assets", "public", "images", "customers")
 
+	// Ensure directory exists
+	_ = os.MkdirAll(basePath, os.ModePerm)
+
+	// Security: Clean the filename to remove unsafe characters
+	filename = sanitizeFilename(filename)
+
+	// If no filename is provided after sanitization, return the folder path
+	if filename == "" {
+		return basePath
+	}
+
+	// Combine the base path with the specific filename
+	return filepath.Join(basePath, filename)
+}
+
+// GetCustomerImageURL constructs the url for a customer image.
+// It accepts a filename, ext, sanitizes it, and appends it to the customer directory.
+func GetCustomerImageURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "customers", filename + ext}, "/")
+}
 // sanitizeFilename removes unsafe characters from filenames
 func sanitizeFilename(name string) string {
 	name = strings.ToLower(name)
@@ -96,4 +124,33 @@ func sanitizeFilename(name string) string {
 		}
 	}
 	return string(clean)
+}
+// GetHeroFolderPath constructs the full file path for a hero banner image.
+// It accepts a filename, sanitizes it, and appends it to the hero directory.
+// If the filename is empty, it returns the directory path itself.
+// It also ensures the directory exists.
+func GetHeroFolderPath(filename string) string {
+    // Define the specific subdirectory for hero banners
+    basePath := filepath.Join(".", "assets", "public", "images", "hero")
+
+    // Ensure directory exists
+    _ = os.MkdirAll(basePath, os.ModePerm)
+
+    // Security: Clean the filename to remove unsafe characters
+    filename = sanitizeFilename(filename)
+
+    // If no filename is provided after sanitization, return the folder path
+    if filename == "" {
+        return basePath
+    }
+
+    // Combine the base path with the specific filename
+    return filepath.Join(basePath, filename)
+}
+
+// GetHeroBannerURL constructs the url for a hero banner image.
+// It accepts a filename, ext, sanitizes it, and appends it to the hero directory.
+func GetHeroBannerURL(filename, ext string) string {
+    filename = sanitizeFilename(filename)
+    return strings.Join([]string{"public", "images", "hero", filename + ext}, "/")
 }

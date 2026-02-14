@@ -3,14 +3,14 @@
 
 CREATE TABLE IF NOT EXISTS customers (
     id                      BIGSERIAL PRIMARY KEY,
-    name                    VARCHAR(80),
+    name                    VARCHAR(255),
     f_name                  VARCHAR(255),
     l_name                  VARCHAR(255),
     phone                   VARCHAR(25) NOT NULL,
-    image                   VARCHAR(30) NOT NULL DEFAULT 'def.png',
+    image                   TEXT NOT NULL DEFAULT 'def.png',
     email                   VARCHAR(255),
     email_verified_at       TIMESTAMPTZ,
-    password                VARCHAR(80) NOT NULL,
+    password                TEXT NOT NULL,
     remember_token          VARCHAR(100),
     created_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -20,15 +20,15 @@ CREATE TABLE IF NOT EXISTS customers (
     zip                     VARCHAR(20),
     house_no                VARCHAR(50),
     apartment_no            VARCHAR(50),
-    cm_firebase_token       VARCHAR(191),
+    cm_firebase_token       VARCHAR(255),
     is_active               BOOLEAN NOT NULL DEFAULT TRUE,
-    payment_card_last_four  VARCHAR(191),
-    payment_card_brand      VARCHAR(191),
+    payment_card_last_four  VARCHAR(255),
+    payment_card_brand      VARCHAR(255),
     payment_card_fawry_token TEXT,
-    login_medium            VARCHAR(191),
-    social_id               VARCHAR(191),
+    login_medium            VARCHAR(255),
+    social_id               VARCHAR(255),
     is_phone_verified       BOOLEAN NOT NULL DEFAULT FALSE,
-    temporary_token         VARCHAR(191),
+    temporary_token         VARCHAR(255),
     is_email_verified       BOOLEAN NOT NULL DEFAULT FALSE,
     wallet_balance          NUMERIC(8, 2),
     loyalty_point           NUMERIC(18, 4) DEFAULT 0.0000,
@@ -37,10 +37,11 @@ CREATE TABLE IF NOT EXISTS customers (
     temp_block_time         TIMESTAMPTZ,
     referral_code           VARCHAR(255),
     referred_by             INTEGER,
-    app_language            VARCHAR(191) NOT NULL DEFAULT 'en',
+    app_language            VARCHAR(255) NOT NULL DEFAULT 'en',
 
     CONSTRAINT customers_email_unique UNIQUE (email)
 );
+
 
 -- Index for phone lookups (commonly queried)
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
