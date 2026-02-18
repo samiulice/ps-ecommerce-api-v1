@@ -39,6 +39,8 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 		r.Mount("/orders", orderRoutes(handlers.OrderHandler))
 		r.Mount("/site-settings", siteSettingsRoutes(handlers.SiteSettingsHandler))
 		r.Mount("/branches", branchRoutes(handlers.BranchHandler))
+		r.Mount("/units", UnitRoutes(handlers.UnitHandler))
+		r.Mount("/attributes", AttributeRoutes(handlers.AttributeHandler))
 	})
 
 	return mux
