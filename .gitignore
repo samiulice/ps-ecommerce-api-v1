@@ -2,3 +2,6 @@
 bin
 deploy-to-vps.sh
 assets
+
+.idea
+.vscode

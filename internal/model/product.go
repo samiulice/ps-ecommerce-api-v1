@@ -2,75 +2,68 @@ package model
 
 import "time"
 
+// Product represents the product entity based on the new schema
 type Product struct {
-	ID                          int64      `json:"id"`
-	AddedBy                     *string    `json:"added_by"`
-	UserID                      *int64     `json:"user_id"`
-	Name                        *string    `json:"name"`
-	Slug                        *string    `json:"slug"`
-	ProductType                 string     `json:"product_type"`
-	CategoryIDs                 *string    `json:"category_ids"`
-	CategoryID                  *string    `json:"category_id"`
-	SubCategoryID               *string    `json:"sub_category_id"`
-	SubSubCategoryID            *string    `json:"sub_sub_category_id"`
-	BrandID                     *int64     `json:"brand_id"`
-	Unit                        *string    `json:"unit"`
-	MinQty                      int        `json:"min_qty"`
-	Refundable                  bool       `json:"refundable"`
-	DigitalProductType          *string    `json:"digital_product_type"`
-	DigitalFileReady            *string    `json:"digital_file_ready"`
-	DigitalFileReadyStorageType *string    `json:"digital_file_ready_storage_type"`
-	Images                      *string    `json:"images"`
-	ColorImage                  string     `json:"color_image"`
-	Thumbnail                   *string    `json:"thumbnail"`
-	ThumbnailStorageType        *string    `json:"thumbnail_storage_type"`
-	PreviewFile                 *string    `json:"preview_file"`
-	PreviewFileStorageType      *string    `json:"preview_file_storage_type"`
-	Featured                    *string    `json:"featured"`
-	FlashDeal                   *string    `json:"flash_deal"`
-	VideoProvider               *string    `json:"video_provider"`
-	VideoURL                    *string    `json:"video_url"`
-	Colors                      *string    `json:"colors"`
-	VariantProduct              bool       `json:"variant_product"`
-	Attributes                  *string    `json:"attributes"`
-	ChoiceOptions               *string    `json:"choice_options"`
-	Variation                   *string    `json:"variation"`
-	DigitalProductFileTypes     *string    `json:"digital_product_file_types"`
-	DigitalProductExtensions    *string    `json:"digital_product_extensions"`
-	Published                   bool       `json:"published"`
-	UnitPrice                   float64    `json:"unit_price"`
-	PurchasePrice               float64    `json:"purchase_price"`
-	Tax                         string     `json:"tax"`
-	TaxType                     *string    `json:"tax_type"`
-	TaxModel                    string     `json:"tax_model"`
-	Discount                    string     `json:"discount"`
-	DiscountType                *string    `json:"discount_type"`
-	CurrentStock                *int       `json:"current_stock"`
-	MinimumOrderQty             int        `json:"minimum_order_qty"`
-	Details                     *string    `json:"details"`
-	FreeShipping                bool       `json:"free_shipping"`
-	Attachment                  *string    `json:"attachment"`
-	CreatedAt                   *time.Time `json:"created_at"`
-	UpdatedAt                   *time.Time `json:"updated_at"`
-	Status                      bool       `json:"status"`
-	FeaturedStatus              bool       `json:"featured_status"`
-	MetaTitle                   *string    `json:"meta_title"`
-	MetaDescription             *string    `json:"meta_description"`
-	MetaImage                   *string    `json:"meta_image"`
-	RequestStatus               bool       `json:"request_status"`
-	DeniedNote                  *string    `json:"denied_note"`
-	ShippingCost                *float64   `json:"shipping_cost"`
-	MultiplyQty                 *bool      `json:"multiply_qty"`
-	TempShippingCost            *float64   `json:"temp_shipping_cost"`
-	IsShippingCostUpdated       *bool      `json:"is_shipping_cost_updated"`
-	Code                        *string    `json:"code"`
+	ID                  int64                  `json:"id"`
+	Name                string                 `json:"name"`
+	Description         string                 `json:"description"`      // Stored as Markdown
+	DescriptionHTML     string                 `json:"description_html"` // Computed: Markdown converted to sanitized HTML (not stored in DB)
+	CategoryID          int64                  `json:"category_id"`
+	SubCategoryID       *int64                 `json:"sub_category_id"`
+	SubSubCategoryID    *int64                 `json:"sub_sub_category_id"`
+	BrandID             *int64                 `json:"brand_id"`
+	SKU                 string                 `json:"sku"`
+	Status              int                    `json:"status"` // 1: Active, 0: Inactive
+	UnitID              *int                   `json:"unit_id"`
+	Tags                string                 `json:"tags"`
+	Thumbnail           string                 `json:"thumbnail"`
+	GalleryImages       []string               `json:"gallery_images"`
+	UnitPrice           float64                `json:"unit_price"`
+	PurchasePrice       float64                `json:"purchase_price"`
+	MinOrderQty         float64                `json:"min_order_qty"`
+	CurrentStockQty     float64                `json:"current_stock_qty"`
+	StockAlertQty       float64                `json:"stock_alert_qty"`
+	TotalSold           float64                `json:"total_sold"`
+	DiscountType        string                 `json:"discount_type"` // "percentage" or "flat"
+	DiscountAmount      float64                `json:"discount_amount"`
+	TaxAmount           float64                `json:"tax_amount"`
+	TaxType             string                 `json:"tax_type"` // "inclusive" or "exclusive"
+	ShippingCost        float64                `json:"shipping_cost"`
+	ShippingType        string                 `json:"shipping_type"`
+	HasVariation        bool                   `json:"has_variation"`
+	VariationAttributes map[string]interface{} `json:"variation_attributes"` // JSONB column
+	TotalReviews        int64                  `json:"total_reviews"`
+	AvgRating           float64                `json:"avg_rating"`
+	FiveStarCount       int64                  `json:"five_star_count"`
+	FourStarCount       int64                  `json:"four_star_count"`
+	ThreeStarCount      int64                  `json:"three_star_count"`
+	TwoStarCount        int64                  `json:"two_star_count"`
+	OneStarCount        int64                  `json:"one_star_count"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
+
+	// Relations
+	Variations []ProductVariation `json:"variations,omitempty"`
 }
 
-// ProductFilter holds optional query parameters for listing products
+// ProductVariation represents the product_variations table
+type ProductVariation struct {
+	ID                  int64                  `json:"id"`
+	ProductID           int64                  `json:"product_id"`
+	VariationAttributes map[string]interface{} `json:"variation_attributes"` // JSONB
+	SKU                 string                 `json:"sku"`
+	Price               float64                `json:"price"`
+	StockQty            float64                `json:"stock_qty"`
+	Thumbnail           string                 `json:"thumbnail"`
+	CreatedAt           time.Time              `json:"created_at"`
+	UpdatedAt           time.Time              `json:"updated_at"`
+}
+
+// ProductFilter holds query parameters for listing products
 type ProductFilter struct {
-	Status     string // "active", "inactive", or empty for all
-	Published  string // "true", "false", or empty for all
-	CategoryID string // filter by category_id
-	Page       int    // pagination
-	Limit      int    // pagination
+	Status     string // "active", "inactive"
+	CategoryID string // Filter by category
+	Search     string // Search by name or tags
+	Page       int    // Pagination page
+	Limit      int    // Pagination limit
 }

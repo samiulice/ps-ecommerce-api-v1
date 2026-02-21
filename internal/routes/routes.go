@@ -34,6 +34,7 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 		// Public Routes
 		r.Mount("/auth", authRoutes(handlers.AuthHandler, cfg.JWT.Access.SecretKey))
 		r.Mount("/categories", categoryRoutes(handlers.CategoryHandler))
+		r.Mount("/brands", brandRoutes(handlers.BrandHandler))
 		r.Mount("/products", productRoutes(handlers.ProductHandler))
 		r.Mount("/customers", customerRoutes(handlers.CustomerHandler))
 		r.Mount("/orders", orderRoutes(handlers.OrderHandler))

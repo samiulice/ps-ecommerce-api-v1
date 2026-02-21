@@ -10,6 +10,7 @@ import (
 type ServiceRepository struct {
 	AuthService         *AuthService
 	CategoryService     *CategoryService
+	BrandService        *BrandService
 	ProductService      *ProductService
 	CustomerService     *CustomerService
 	OrderService        *OrderService
@@ -25,6 +26,7 @@ func NewServiceRepository(dbrepo *repository.DBRepository, rdb *redis.Client, co
 		AuthService:         NewAuthService(dbrepo.EmployeeRepository, dbrepo.CustomerRepository, dbrepo.RedisTokenRepository, config.JWT.Access.SecretKey),
 		CategoryService:     NewCategoryService(dbrepo.CategoryRepo),
 		ProductService:      NewProductService(dbrepo.ProductRepo),
+		BrandService:        NewBrandService(dbrepo.BrandRepo),
 		CustomerService:     NewCustomerService(dbrepo.CustomerRepository),
 		OrderService:        NewOrderService(dbrepo.OrderRepo, dbrepo.CustomerRepository),
 		SiteSettingsService: NewSiteSettingsService(dbrepo.SiteSettingsRepo),

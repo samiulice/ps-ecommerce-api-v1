@@ -11,6 +11,7 @@ type DBRepository struct {
 	CustomerRepository   *CustomerRepository
 	RedisTokenRepository *RedisTokenRepo
 	CategoryRepo         *CategoryRepo
+	BrandRepo            *BrandRepo
 	ProductRepo          *ProductRepo
 	OrderRepo            *OrderRepo
 	SiteSettingsRepo     *SiteSettingsRepo
@@ -26,11 +27,12 @@ func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 		CustomerRepository:   NewCustomerRepo(db),
 		RedisTokenRepository: NewRedisTokenRepo(rdb),
 		CategoryRepo:         NewCategoryRepo(db),
+		BrandRepo:            NewBrandRepo(db),
 		ProductRepo:          NewProductRepo(db),
 		OrderRepo:            NewOrderRepo(db),
 		SiteSettingsRepo:     NewSiteSettingsRepo(db),
 		BranchRepo:           NewBranchRepo(db),
 		UnitRepo:             NewUnitRepo(db),
-		AttributeRepo: NewAttributeRepo(db),
+		AttributeRepo:        NewAttributeRepo(db),
 	}
 }

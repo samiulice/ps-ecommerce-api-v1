@@ -50,7 +50,37 @@ func GetCategoryThumbnailURL(filename, ext string) string {
 	return strings.Join([]string{"public", "images", "categories", filename + ext}, "/")
 
 }
+// GetBrandFolderPath constructs the full file path for a brand image.
+// It accepts a filename, sanitizes it, and appends it to the brand directory.
+// If the filename is empty, it returns the directory path itself.
+// It also ensures the directory exists.
+func GetBrandFolderPath(filename string) string {
+	// Define the specific subdirectory for brands
+	basePath := filepath.Join(".", "assets", "public", "images", "brands")
 
+	// Ensure directory exists
+	_ = os.MkdirAll(basePath, os.ModePerm)
+
+	// Security: Clean the filename to remove unsafe characters
+	// Note: sanitizeFilename should already exist in utils
+	filename = sanitizeFilename(filename)
+
+	// If no filename is provided after sanitization, return the folder path
+	if filename == "" {
+		return basePath
+	}
+
+	// Combine the base path with the specific filename
+	return filepath.Join(basePath, filename)
+}
+
+// GetBrandThumbnailURL constructs the url for a brand image.
+// It accepts a filename, ext, sanitizes it, and appends it to the brand directory.
+func GetBrandThumbnailURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "brands", filename + ext}, "/")
+
+}
 // GetProductFolderPath constructs the full file path for a Product images.
 // It accepts a filename, sanitizes it, and appends it to the product directory.
 // If the filename is empty, it returns the directory path itself.
