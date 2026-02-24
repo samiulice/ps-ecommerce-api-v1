@@ -2,7 +2,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/projuktisheba/pse-api-v1/internal/middleware"
@@ -64,8 +63,6 @@ func (h *AuthHandler) EmployeeLogin(w http.ResponseWriter, r *http.Request) {
 		utils.BadRequest(w, err)
 		return
 	}
-
-	fmt.Printf("%+v", req)
 
 	employee, access, refresh, err := h.svc.EmployeeLogin(r.Context(), req.Email, req.Password)
 	if err != nil {

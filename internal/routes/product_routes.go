@@ -13,8 +13,10 @@ func productRoutes(h *handler.ProductHandler) *chi.Mux {
 
 	mux.Post("/new", h.Create)
 	mux.Get("/get/{id}", h.GetByID)
+	mux.Get("/get-variations/{id}", h.GetProductVariationsByProductID)
 	mux.Put("/update/{id}", h.Update)
 	mux.Delete("/delete/{id}", h.Delete)
+	mux.Delete("/delete-gallery-image/{id}", h.DeleteGalleryImage)
 
 	return mux
 }

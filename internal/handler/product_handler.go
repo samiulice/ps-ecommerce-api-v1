@@ -104,6 +104,27 @@ func (h *ProductHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{"error": false, "message": "Product deleted successfully"})
 }
 
+// DeleteGalleryImage removes a specific gallery image from a product
+func (h *ProductHandler) DeleteGalleryImage(w http.ResponseWriter, r *http.Request) {
+	productID, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	imagePath := r.URL.Query().Get("image_path")
+
+	if productID == 0 || imagePath == "" {
+		utils.BadRequest(w, fmt.Errorf("product_id and image_path are required"))
+		return
+	}
+
+	if err := h.svc.DeleteGalleryImage(r.Context(), productID, imagePath); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"error":   false,
+		"message": "Gallery image deleted successfully",
+	})
+}
+
 func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
 	product, err := h.svc.GetByID(r.Context(), id)
@@ -114,6 +135,22 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	// Convert Markdown description to sanitized HTML for web rendering
 	product.DescriptionHTML = utils.MarkdownToHTML(product.Description)
 	utils.WriteJSON(w, http.StatusOK, product)
+}
+
+// GetProductVariationsByProductID read the id from the path and call service to get the product variations
+func (h *ProductHandler) GetProductVariationsByProductID(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	productVariations, err := h.svc.GetProductVariationsByProductID(r.Context(), id)
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"error":              false,
+		"message":            "Product variations retrieved",
+		"product_variations": productVariations,
+	})
 }
 
 func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {

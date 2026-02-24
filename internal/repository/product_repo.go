@@ -199,6 +199,31 @@ func (r *ProductRepo) GetByID(ctx context.Context, id int64) (*model.Product, er
 	return &p, nil
 }
 
+// GetProductVariationsByProductID retrieves a product variations
+func (r *ProductRepo) GetProductVariationsByProductID(ctx context.Context, id int64) ([]*model.ProductVariation, error) {
+	var variations []*model.ProductVariation
+
+	query := `
+			SELECT id, product_id, variation_attributes, sku, price, stock_qty, thumbnail
+			FROM product_variations WHERE product_id = $1
+		`
+	rows, err := r.db.Query(ctx, query, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var v model.ProductVariation
+		if err := rows.Scan(&v.ID, &v.ProductID, &v.VariationAttributes, &v.SKU, &v.Price, &v.StockQty, &v.Thumbnail); err != nil {
+			return nil, err
+		}
+		variations = append(variations, &v)
+	}
+
+	return variations, nil
+}
+
 // GetProducts retrieves products with filters
 func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilter) ([]*model.Product, int64, error) {
 	baseQuery := `

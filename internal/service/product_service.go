@@ -162,8 +162,48 @@ func (s *ProductService) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+// DeleteGalleryImage removes a specific gallery image from product and deletes the file
+func (s *ProductService) DeleteGalleryImage(ctx context.Context, productID int64, imagePath string) error {
+	product, err := s.GetByID(ctx, productID)
+	if err != nil {
+		return err
+	}
+
+	// Find and remove the image from gallery
+	found := false
+	newGallery := make([]string, 0, len(product.GalleryImages))
+	for _, img := range product.GalleryImages {
+		if img == imagePath {
+			found = true
+			continue
+		}
+		newGallery = append(newGallery, img)
+	}
+
+	if !found {
+		return errors.New("image not found in product gallery")
+	}
+
+	// Update product with new gallery
+	product.GalleryImages = newGallery
+	err = s.repo.Update(ctx, product)
+	if err != nil {
+		return err
+	}
+
+	// Delete the actual file
+	utils.DeleteFile(utils.GetProductFolderPath(filepath.Base(imagePath)))
+
+	return nil
+}
+
 func (s *ProductService) GetByID(ctx context.Context, id int64) (*model.Product, error) {
 	return s.repo.GetByID(ctx, id)
+}
+
+// GetProductVariationsByProductID calls database func to read the product variations from the database
+func (s *ProductService) GetProductVariationsByProductID(ctx context.Context, id int64) ([]*model.ProductVariation, error) {
+	return s.repo.GetProductVariationsByProductID(ctx, id)
 }
 
 func (s *ProductService) GetProducts(ctx context.Context, filter model.ProductFilter) ([]*model.Product, int64, error) {
