@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,7 +20,6 @@ func NewProductRepo(db *pgxpool.Pool) *ProductRepo {
 	return &ProductRepo{db: db}
 }
 
-// Create inserts a new product and its variations transactionally
 func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
@@ -28,18 +28,19 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 	defer tx.Rollback(ctx)
 
 	// 1. Insert into products table
+	// Note: We insert with the provided p.SKU (which might be empty)
 	query := `
-		INSERT INTO products (
-			name, description, category_id, sub_category_id, sub_sub_category_id,
-			brand_id, sku, status, unit_id, tags, thumbnail, gallery_images,
-			unit_price, purchase_price, min_order_qty, current_stock_qty,
-			stock_alert_qty, discount_type, discount_amount, tax_amount, tax_type,
-			shipping_cost, shipping_type, has_variation, variation_attributes
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-			$17, $18, $19, $20, $21, $22, $23, $24, $25
-		) RETURNING id, created_at, updated_at
-	`
+        INSERT INTO products (
+            name, description, category_id, sub_category_id, sub_sub_category_id,
+            brand_id, sku, status, unit_id, tags, thumbnail, gallery_images,
+            unit_price, purchase_price, min_order_qty, current_stock_qty,
+            stock_alert_qty, discount_type, discount_amount, tax_amount, tax_type,
+            shipping_cost, shipping_type, has_variation, variation_attributes
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+            $17, $18, $19, $20, $21, $22, $23, $24, $25
+        ) RETURNING id, created_at, updated_at
+    `
 
 	err = tx.QueryRow(ctx, query,
 		p.Name, p.Description, p.CategoryID, p.SubCategoryID, p.SubSubCategoryID,
@@ -56,14 +57,35 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 		return err
 	}
 
-	// 2. Insert Variations if they exist and has_variation is true
+	// 2. Generate SKU if missing using the Database ID
+	// Format: PRD-26-CATID-DBID (e.g., PRD-26-5-102)
+	// This is much shorter and guaranteed unique.
+	if p.SKU == "" {
+		yearShort := time.Now().Format("06") // "26"
+		p.SKU = fmt.Sprintf("PRD-%s-%d-%d", yearShort, p.CategoryID, p.ID)
+
+		_, err = tx.Exec(ctx, "UPDATE products SET sku = $1 WHERE id = $2", p.SKU, p.ID)
+		if err != nil {
+			return fmt.Errorf("failed to update generated sku: %w", err)
+		}
+	}
+
+	// 3. Insert Variations
 	if p.HasVariation && len(p.Variations) > 0 {
 		varQuery := `
-			INSERT INTO product_variations (
-				product_id, variation_attributes, sku, price, stock_qty, thumbnail
-			) VALUES ($1, $2, $3, $4, $5, $6)
-		`
-		for _, v := range p.Variations {
+            INSERT INTO product_variations (
+                product_id, variation_attributes, sku, price, stock_qty, thumbnail
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+        `
+		for i, v := range p.Variations {
+			// If variation SKU is missing, derive it from parent SKU
+			// Result: PRD-26-5-102-V1
+			if v.SKU == "" {
+				v.SKU = fmt.Sprintf("%s-V%d", p.SKU, i+1)
+			} else {
+				v.SKU = fmt.Sprintf("%s-%s", p.SKU, v.SKU)
+			}
+
 			_, err := tx.Exec(ctx, varQuery,
 				p.ID, v.VariationAttributes, v.SKU, v.Price, v.StockQty, v.Thumbnail,
 			)
@@ -75,66 +97,93 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 
 	return tx.Commit(ctx)
 }
+// UpdateImageURLs update the existing product thumbnail and gallery images
+func (r *ProductRepo) UpdateImageURLs(ctx context.Context, thumbnail string, galleryImages []string, productId int64) error {
 
+    // 1. Update Product images urls
+    query := `
+        UPDATE products SET
+            thumbnail = $1, gallery_images = $2, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3
+        RETURNING created_at, updated_at
+    `
+    _, err := r.db.Exec(ctx, query, thumbnail, galleryImages, productId)
+
+    return err
+}
 // Update modifies an existing product and recreates variations
 func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
+    tx, err := r.db.Begin(ctx)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback(ctx)
 
-	// 1. Update Product Table
-	query := `
-		UPDATE products SET
-			name = $1, description = $2, category_id = $3, sub_category_id = $4,
-			sub_sub_category_id = $5, brand_id = $6, sku = $7, status = $8,
-			unit_id = $9, tags = $10, thumbnail = $11, gallery_images = $12,
-			unit_price = $13, purchase_price = $14, min_order_qty = $15,
-			current_stock_qty = $16, stock_alert_qty = $17, discount_type = $18,
-			discount_amount = $19, tax_amount = $20, tax_type = $21,
-			shipping_cost = $22, shipping_type = $23, has_variation = $24,
-			variation_attributes = $25, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $26
-		RETURNING created_at, updated_at
-	`
-	err = tx.QueryRow(ctx, query,
-		p.Name, p.Description, p.CategoryID, p.SubCategoryID, p.SubSubCategoryID,
-		p.BrandID, p.SKU, p.Status, p.UnitID, p.Tags, p.Thumbnail, p.GalleryImages,
-		p.UnitPrice, p.PurchasePrice, p.MinOrderQty, p.CurrentStockQty,
-		p.StockAlertQty, p.DiscountType, p.DiscountAmount, p.TaxAmount, p.TaxType,
-		p.ShippingCost, p.ShippingType, p.HasVariation, p.VariationAttributes,
-		p.ID,
-	).Scan(&p.CreatedAt, &p.UpdatedAt)
+    // 1. Ensure SKU is not lost or is regenerated if cleared
+    if p.SKU == "" {
+        // Option A: Regenerate using the same pattern as Create
+        yearShort := time.Now().Format("06")
+        p.SKU = fmt.Sprintf("PRD-%s-%d-%d", yearShort, p.CategoryID, p.ID)
+    }
 
-	if err != nil {
-		return err
-	}
+    // 2. Update Product Table
+    query := `
+        UPDATE products SET
+            name = $1, description = $2, category_id = $3, sub_category_id = $4,
+            sub_sub_category_id = $5, brand_id = $6, sku = $7, status = $8,
+            unit_id = $9, tags = $10, thumbnail = $11, gallery_images = $12,
+            unit_price = $13, purchase_price = $14, min_order_qty = $15,
+            current_stock_qty = $16, stock_alert_qty = $17, discount_type = $18,
+            discount_amount = $19, tax_amount = $20, tax_type = $21,
+            shipping_cost = $22, shipping_type = $23, has_variation = $24,
+            variation_attributes = $25, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $26
+        RETURNING created_at, updated_at
+    `
+    err = tx.QueryRow(ctx, query,
+        p.Name, p.Description, p.CategoryID, p.SubCategoryID, p.SubSubCategoryID,
+        p.BrandID, p.SKU, p.Status, p.UnitID, p.Tags, p.Thumbnail, p.GalleryImages,
+        p.UnitPrice, p.PurchasePrice, p.MinOrderQty, p.CurrentStockQty,
+        p.StockAlertQty, p.DiscountType, p.DiscountAmount, p.TaxAmount, p.TaxType,
+        p.ShippingCost, p.ShippingType, p.HasVariation, p.VariationAttributes,
+        p.ID,
+    ).Scan(&p.CreatedAt, &p.UpdatedAt)
 
-	// 2. Handle Variations (Delete all and Re-insert strategy for simplicity)
-	// In a high-traffic production system, you might want to upsert instead.
-	_, err = tx.Exec(ctx, "DELETE FROM product_variations WHERE product_id = $1", p.ID)
-	if err != nil {
-		return err
-	}
+    if err != nil {
+        if strings.Contains(err.Error(), "duplicate key value") {
+             return fmt.Errorf("sku '%s' is already taken by another product", p.SKU)
+        }
+        return err
+    }
 
-	if p.HasVariation && len(p.Variations) > 0 {
-		varQuery := `
-			INSERT INTO product_variations (
-				product_id, variation_attributes, sku, price, stock_qty, thumbnail
-			) VALUES ($1, $2, $3, $4, $5, $6)
-		`
-		for _, v := range p.Variations {
-			_, err := tx.Exec(ctx, varQuery,
-				p.ID, v.VariationAttributes, v.SKU, v.Price, v.StockQty, v.Thumbnail,
-			)
-			if err != nil {
-				return err
-			}
-		}
-	}
+    // 3. Handle Variations (Delete and Re-insert)
+    _, err = tx.Exec(ctx, "DELETE FROM product_variations WHERE product_id = $1", p.ID)
+    if err != nil {
+        return err
+    }
 
-	return tx.Commit(ctx)
+    if p.HasVariation && len(p.Variations) > 0 {
+        varQuery := `
+            INSERT INTO product_variations (
+                product_id, variation_attributes, sku, price, stock_qty, thumbnail
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+        `
+        for i, v := range p.Variations {
+            // Re-apply naming convention if variation SKU is missing
+            if v.SKU == "" {
+                v.SKU = fmt.Sprintf("%s-V%d", p.SKU, i+1)
+            }
+
+            _, err := tx.Exec(ctx, varQuery,
+                p.ID, v.VariationAttributes, v.SKU, v.Price, v.StockQty, v.Thumbnail,
+            )
+            if err != nil {
+                return fmt.Errorf("failed to save variation %s: %w", v.SKU, err)
+            }
+        }
+    }
+
+    return tx.Commit(ctx)
 }
 
 // Delete removes a product by ID

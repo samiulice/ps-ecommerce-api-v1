@@ -22,7 +22,7 @@ func NewProductService(repo *repository.ProductRepo) *ProductService {
 }
 
 // Helper to process gallery uploads
-func (s *ProductService) processGalleryImages(files []*multipart.FileHeader, productName string) ([]string, error) {
+func (s *ProductService) processGalleryImages(files []*multipart.FileHeader, productSKU string) ([]string, error) {
 	var imagePaths []string
 	for i, fileHeader := range files {
 		file, err := fileHeader.Open()
@@ -32,7 +32,7 @@ func (s *ProductService) processGalleryImages(files []*multipart.FileHeader, pro
 		defer file.Close()
 
 		// Generate unique name for this gallery image
-		imageUniqueName := fmt.Sprintf("%s-gallery-%d-%s", productName, i+1, utils.GenerateRandomString(5))
+		imageUniqueName := fmt.Sprintf("gallery%s%d%s", productSKU, i+1, utils.GenerateRandomString(5))
 
 		// Save image with the unique name
 		createdPath, saveErr := utils.SaveMultipartImage(file, fileHeader, utils.GetProductFolderPath(""), imageUniqueName)
@@ -54,21 +54,24 @@ func (s *ProductService) Create(ctx context.Context, p *model.Product, thumbFile
 	if p.Name == "" {
 		return errors.New("name is required")
 	}
-	if p.SKU == "" {
-		// Generate SKU if missing (basic example)
-		p.SKU = strings.ToUpper(strings.ReplaceAll(p.Name, " ", "-") + "-" + utils.GenerateRandomString(4))
-	}
 
-	// 1. Handle Thumbnail
-	if thumbFile != nil {
+	// 1. Insert into database
+	err := s.repo.Create(ctx, p)
+
+	// 2. Save Thumbnail File on successful DB insert
+	if err == nil && thumbFile != nil {
 		ext := strings.ToLower(filepath.Ext(thumbHeader.Filename))
-		thumbnailURL := utils.GetProductThumbnailURL(p.Name, ext)
+		thumbnailURL := utils.GetProductThumbnailURL("thumb"+p.SKU, ext)
 		p.Thumbnail = thumbnailURL
+		defer thumbFile.Close()
+		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), "thumb"+p.SKU)
+		if saveErr != nil {
+			return saveErr
+		}
 	}
-
-	// 2. Handle Gallery Images
+	// 3. Handle Gallery Images
 	if len(galleryFiles) > 0 {
-		paths, err := s.processGalleryImages(galleryFiles, p.Name)
+		paths, err := s.processGalleryImages(galleryFiles, p.SKU)
 		if err != nil {
 			return err
 		}
@@ -77,18 +80,9 @@ func (s *ProductService) Create(ctx context.Context, p *model.Product, thumbFile
 	} else {
 		fmt.Printf("No Gallery Images Found\n")
 	}
-	// 3. Insert into database
-	err := s.repo.Create(ctx, p)
 
-	// 4. Save Thumbnail File on successful DB insert
-	if err == nil && thumbFile != nil {
-		defer thumbFile.Close()
-		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), p.Name)
-		if saveErr != nil {
-			return saveErr
-		}
-	}
-
+	// 4. Update image urls
+	err = s.repo.UpdateImageURLs(ctx, p.Thumbnail, p.GalleryImages, p.ID)
 	return err
 }
 
@@ -107,11 +101,11 @@ func (s *ProductService) Update(ctx context.Context, p *model.Product, thumbFile
 	if thumbFile != nil && thumbHeader != nil {
 		defer thumbFile.Close()
 		ext := strings.ToLower(filepath.Ext(thumbHeader.Filename))
-		thumbnailURL := utils.GetProductThumbnailURL(p.Name, ext)
+		thumbnailURL := utils.GetProductThumbnailURL("thumb"+p.SKU, ext)
 		p.Thumbnail = thumbnailURL
 
 		// Save thumbnail file first (before DB update)
-		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), p.Name)
+		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), "thumb"+p.SKU)
 		if saveErr != nil {
 			return fmt.Errorf("failed to save thumbnail: %w", saveErr)
 		}
@@ -126,7 +120,7 @@ func (s *ProductService) Update(ctx context.Context, p *model.Product, thumbFile
 
 	// Handle Gallery Update (Append or Replace logic - implementing Replace for simplicity)
 	if len(galleryFiles) > 0 {
-		paths, err := s.processGalleryImages(galleryFiles, p.Name)
+		paths, err := s.processGalleryImages(galleryFiles, p.SKU)
 		if err != nil {
 			return err
 		}
@@ -183,7 +177,7 @@ func (s *ProductService) DeleteGalleryImage(ctx context.Context, productID int64
 
 	// Update product with new gallery
 	product.GalleryImages = newGallery
-	err = s.repo.Update(ctx, product)
+	err = s.repo.UpdateImageURLs(ctx, product.Thumbnail, product.GalleryImages, productID)
 	if err != nil {
 		return err
 	}
