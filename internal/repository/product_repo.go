@@ -82,8 +82,6 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 			// Result: PRD-26-5-102-V1
 			if v.SKU == "" {
 				v.SKU = fmt.Sprintf("%s-V%d", p.SKU, i+1)
-			} else {
-				v.SKU = fmt.Sprintf("%s-%s", p.SKU, v.SKU)
 			}
 
 			_, err := tx.Exec(ctx, varQuery,
@@ -120,11 +118,10 @@ func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
     defer tx.Rollback(ctx)
 
     // 1. Ensure SKU is not lost or is regenerated if cleared
-    if p.SKU == "" {
-        // Option A: Regenerate using the same pattern as Create
-        yearShort := time.Now().Format("06")
-        p.SKU = fmt.Sprintf("PRD-%s-%d-%d", yearShort, p.CategoryID, p.ID)
-    }
+	if p.SKU == "" {
+		yearShort := time.Now().Format("06") // "26"
+		p.SKU = fmt.Sprintf("PRD-%s-%d-%d", yearShort, p.CategoryID, p.ID)
+	}
 
     // 2. Update Product Table
     query := `
