@@ -104,10 +104,22 @@ func (s *ProductService) Update(ctx context.Context, p *model.Product, thumbFile
 	}
 
 	// Handle Thumbnail Update
-	if thumbFile != nil {
+	if thumbFile != nil && thumbHeader != nil {
+		defer thumbFile.Close()
 		ext := strings.ToLower(filepath.Ext(thumbHeader.Filename))
 		thumbnailURL := utils.GetProductThumbnailURL(p.Name, ext)
 		p.Thumbnail = thumbnailURL
+
+		// Save thumbnail file first (before DB update)
+		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), p.Name)
+		if saveErr != nil {
+			return fmt.Errorf("failed to save thumbnail: %w", saveErr)
+		}
+
+		// Delete old image if different
+		if existingProduct.Thumbnail != "" && existingProduct.Thumbnail != p.Thumbnail {
+			utils.DeleteFile(utils.GetProductFolderPath(filepath.Base(existingProduct.Thumbnail)))
+		}
 	} else {
 		p.Thumbnail = existingProduct.Thumbnail // Keep old if not provided
 	}
@@ -123,22 +135,7 @@ func (s *ProductService) Update(ctx context.Context, p *model.Product, thumbFile
 		p.GalleryImages = existingProduct.GalleryImages
 	}
 
-	err = s.repo.Update(ctx, p)
-
-	// Save new thumbnail if exists
-	if err == nil && thumbFile != nil {
-		defer thumbFile.Close()
-		_, saveErr := utils.SaveMultipartImage(thumbFile, thumbHeader, utils.GetProductFolderPath(""), p.Name)
-		if saveErr != nil {
-			return saveErr
-		}
-		// Delete old image
-		if existingProduct.Thumbnail != "" && p.Thumbnail != "" && existingProduct.Thumbnail != p.Thumbnail {
-			utils.DeleteFile(utils.GetProductFolderPath(filepath.Base(existingProduct.Thumbnail)))
-		}
-	}
-
-	return err
+	return s.repo.Update(ctx, p)
 }
 
 // Delete removes a product
