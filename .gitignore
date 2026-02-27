@@ -1,7 +1,7 @@
 .env
-bin
+bin/*
 deploy-to-vps.sh
-assets
+assets/*
 
 .idea
 .vscode
