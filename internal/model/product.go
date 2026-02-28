@@ -62,7 +62,7 @@ type ProductVariation struct {
 // ProductFilter holds query parameters for listing products
 type ProductFilter struct {
 	Status     string // "active", "inactive"
-	CategoryID string // Filter by category
+	CategoryIDs []int64 // Filter by category
 	Search     string // Search by name or tags
 	Page       int    // Pagination page
 	Limit      int    // Pagination limit

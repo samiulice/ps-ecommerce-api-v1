@@ -79,6 +79,7 @@ func (h *CustomerHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:            stringToNullString(r.FormValue("name")), // Full Name
 		Phone:           r.FormValue("phone"),                    // Required string
 		Email:           stringToNullString(r.FormValue("email")),
+		IsWholesaler:    parseBool("is_wholesaler"),
 		Password:        r.FormValue("password"),
 		StreetAddress:   stringToNullString(r.FormValue("street_address")),
 		City:            stringToNullString(r.FormValue("city")),
@@ -97,6 +98,7 @@ func (h *CustomerHandler) Create(w http.ResponseWriter, r *http.Request) {
 	// 4. Handle Image File
 	file, header, _ := r.FormFile("image")
 
+	fmt.Printf("customer Info:%+v\n", customer)
 	// 5. Call Service
 	// Update your Service.Create to accept (ctx, customer, file, header)
 	resCustomer, err := h.svc.Create(r.Context(), customer, file, header)

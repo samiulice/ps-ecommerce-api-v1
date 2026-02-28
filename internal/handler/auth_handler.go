@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/projuktisheba/pse-api-v1/internal/middleware"
@@ -151,6 +152,7 @@ func (h *AuthHandler) CustomerRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("%+v\n", req)
 	customer, err := h.svc.CustomerRegister(r.Context(), &req)
 	if err != nil {
 		utils.WriteJSON(w, http.StatusConflict, map[string]any{

@@ -155,10 +155,20 @@ func (h *ProductHandler) GetProductVariationsByProductID(w http.ResponseWriter, 
 
 func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
-	categoryID := strings.TrimSpace(r.URL.Query().Get("category_id"))
 	search := strings.TrimSpace(r.URL.Query().Get("search"))
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	// Multiple category support
+	categoryParams := r.URL.Query()["category_id"]
+
+	var categoryIDs []int64
+	for _, idStr := range categoryParams {
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err == nil {
+			categoryIDs = append(categoryIDs, id)
+		}
+	}
 
 	if page < 1 {
 		page = 1
@@ -168,11 +178,11 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filter := model.ProductFilter{
-		Status:     status,
-		CategoryID: categoryID,
-		Search:     search,
-		Page:       page,
-		Limit:      limit,
+		Status:      status,
+		CategoryIDs: categoryIDs,
+		Search:      search,
+		Page:        page,
+		Limit:       limit,
 	}
 
 	products, total, err := h.svc.GetProducts(r.Context(), filter)
@@ -181,7 +191,6 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Convert Markdown descriptions to sanitized HTML for web rendering
 	for i := range products {
 		products[i].DescriptionHTML = utils.MarkdownToHTML(products[i].Description)
 	}

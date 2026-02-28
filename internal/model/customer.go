@@ -14,6 +14,7 @@ type Customer struct {
 	Phone                 string          `json:"phone" db:"phone"`
 	Image                 string          `json:"image" db:"image"`
 	Email                 sql.NullString  `json:"email,omitempty" db:"email"`
+	IsWholesaler          bool            `json:"is_wholesaler" db:"is_wholesaler"`
 	EmailVerifiedAt       sql.NullTime    `json:"email_verified_at,omitempty" db:"email_verified_at"`
 	Password              string          `json:"-" db:"password"`
 	RememberToken         sql.NullString  `json:"-" db:"remember_token"`
@@ -44,29 +45,32 @@ type Customer struct {
 	ReferredBy            sql.NullInt32   `json:"referred_by,omitempty" db:"referred_by"`
 	AppLanguage           string          `json:"app_language" db:"app_language"`
 }
+
 // CustomerFilter defines the criteria for querying customers.
 type CustomerFilter struct {
-    // Search matches against name, phone, or email
-    Search string `json:"search" query:"search"`
+	// Search matches against name, phone, or email
+	Search string `json:"search" query:"search"`
 
 	// Status matches against the account status
 	CheckAccountStatus bool `json:"check_account_status" query:"check_account_status"`
-	IsActive bool `json:"is_active" query:"is_active"`
-    
-    // Page number for pagination (starts at 1)
-    Page int `json:"page" query:"page"`
-    
-    // Limit is the number of items per page
-    Limit int `json:"limit" query:"limit"`
+	IsActive           bool `json:"is_active" query:"is_active"`
+
+	// Page number for pagination (starts at 1)
+	Page int `json:"page" query:"page"`
+
+	// Limit is the number of items per page
+	Limit int `json:"limit" query:"limit"`
 }
+
 // CustomerCreateRequest represents the payload for creating a new customer.
 type CustomerCreateRequest struct {
-	Name     string `json:"name"`
-	FName    string `json:"f_name"`
-	LName    string `json:"l_name"`
-	Phone    string `json:"phone"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name         string `json:"name"`
+	FName        string `json:"f_name"`
+	LName        string `json:"l_name"`
+	Phone        string `json:"phone"`
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	IsWholesaler bool   `json:"is_wholesaler"`
 }
 
 // CustomerUpdateRequest represents the payload for updating a customer.
@@ -94,6 +98,7 @@ type CustomerResponse struct {
 	Phone           string  `json:"phone"`
 	Image           string  `json:"image"`
 	Email           string  `json:"email,omitempty"`
+	IsWholesaler    bool    `json:"is_wholesaler" db:"is_wholesaler"`
 	IsActive        bool    `json:"is_active"`
 	IsPhoneVerified bool    `json:"is_phone_verified"`
 	IsEmailVerified bool    `json:"is_email_verified"`
@@ -116,6 +121,7 @@ func (u *Customer) ToResponse() *CustomerResponse {
 	resp := &CustomerResponse{
 		ID:              u.ID,
 		Phone:           u.Phone,
+		IsWholesaler:    u.IsWholesaler,
 		Image:           u.Image,
 		IsActive:        u.IsActive,
 		IsPhoneVerified: u.IsPhoneVerified,

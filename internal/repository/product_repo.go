@@ -95,36 +95,38 @@ func (r *ProductRepo) Create(ctx context.Context, p *model.Product) error {
 
 	return tx.Commit(ctx)
 }
+
 // UpdateImageURLs update the existing product thumbnail and gallery images
 func (r *ProductRepo) UpdateImageURLs(ctx context.Context, thumbnail string, galleryImages []string, productId int64) error {
 
-    // 1. Update Product images urls
-    query := `
+	// 1. Update Product images urls
+	query := `
         UPDATE products SET
             thumbnail = $1, gallery_images = $2, updated_at = CURRENT_TIMESTAMP
         WHERE id = $3
         RETURNING created_at, updated_at
     `
-    _, err := r.db.Exec(ctx, query, thumbnail, galleryImages, productId)
+	_, err := r.db.Exec(ctx, query, thumbnail, galleryImages, productId)
 
-    return err
+	return err
 }
+
 // Update modifies an existing product and recreates variations
 func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
-    tx, err := r.db.Begin(ctx)
-    if err != nil {
-        return err
-    }
-    defer tx.Rollback(ctx)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
 
-    // 1. Ensure SKU is not lost or is regenerated if cleared
+	// 1. Ensure SKU is not lost or is regenerated if cleared
 	if p.SKU == "" {
 		yearShort := time.Now().Format("06") // "26"
 		p.SKU = fmt.Sprintf("PRD-%s-%d-%d", yearShort, p.CategoryID, p.ID)
 	}
 
-    // 2. Update Product Table
-    query := `
+	// 2. Update Product Table
+	query := `
         UPDATE products SET
             name = $1, description = $2, category_id = $3, sub_category_id = $4,
             sub_sub_category_id = $5, brand_id = $6, sku = $7, status = $8,
@@ -137,50 +139,50 @@ func (r *ProductRepo) Update(ctx context.Context, p *model.Product) error {
         WHERE id = $26
         RETURNING created_at, updated_at
     `
-    err = tx.QueryRow(ctx, query,
-        p.Name, p.Description, p.CategoryID, p.SubCategoryID, p.SubSubCategoryID,
-        p.BrandID, p.SKU, p.Status, p.UnitID, p.Tags, p.Thumbnail, p.GalleryImages,
-        p.UnitPrice, p.PurchasePrice, p.MinOrderQty, p.CurrentStockQty,
-        p.StockAlertQty, p.DiscountType, p.DiscountAmount, p.TaxAmount, p.TaxType,
-        p.ShippingCost, p.ShippingType, p.HasVariation, p.VariationAttributes,
-        p.ID,
-    ).Scan(&p.CreatedAt, &p.UpdatedAt)
+	err = tx.QueryRow(ctx, query,
+		p.Name, p.Description, p.CategoryID, p.SubCategoryID, p.SubSubCategoryID,
+		p.BrandID, p.SKU, p.Status, p.UnitID, p.Tags, p.Thumbnail, p.GalleryImages,
+		p.UnitPrice, p.PurchasePrice, p.MinOrderQty, p.CurrentStockQty,
+		p.StockAlertQty, p.DiscountType, p.DiscountAmount, p.TaxAmount, p.TaxType,
+		p.ShippingCost, p.ShippingType, p.HasVariation, p.VariationAttributes,
+		p.ID,
+	).Scan(&p.CreatedAt, &p.UpdatedAt)
 
-    if err != nil {
-        if strings.Contains(err.Error(), "duplicate key value") {
-             return fmt.Errorf("sku '%s' is already taken by another product", p.SKU)
-        }
-        return err
-    }
+	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key value") {
+			return fmt.Errorf("sku '%s' is already taken by another product", p.SKU)
+		}
+		return err
+	}
 
-    // 3. Handle Variations (Delete and Re-insert)
-    _, err = tx.Exec(ctx, "DELETE FROM product_variations WHERE product_id = $1", p.ID)
-    if err != nil {
-        return err
-    }
+	// 3. Handle Variations (Delete and Re-insert)
+	_, err = tx.Exec(ctx, "DELETE FROM product_variations WHERE product_id = $1", p.ID)
+	if err != nil {
+		return err
+	}
 
-    if p.HasVariation && len(p.Variations) > 0 {
-        varQuery := `
+	if p.HasVariation && len(p.Variations) > 0 {
+		varQuery := `
             INSERT INTO product_variations (
                 product_id, variation_attributes, sku, price, stock_qty, thumbnail
             ) VALUES ($1, $2, $3, $4, $5, $6)
         `
-        for i, v := range p.Variations {
-            // Re-apply naming convention if variation SKU is missing
-            if v.SKU == "" {
-                v.SKU = fmt.Sprintf("%s-V%d", p.SKU, i+1)
-            }
+		for i, v := range p.Variations {
+			// Re-apply naming convention if variation SKU is missing
+			if v.SKU == "" {
+				v.SKU = fmt.Sprintf("%s-V%d", p.SKU, i+1)
+			}
 
-            _, err := tx.Exec(ctx, varQuery,
-                p.ID, v.VariationAttributes, v.SKU, v.Price, v.StockQty, v.Thumbnail,
-            )
-            if err != nil {
-                return fmt.Errorf("failed to save variation %s: %w", v.SKU, err)
-            }
-        }
-    }
+			_, err := tx.Exec(ctx, varQuery,
+				p.ID, v.VariationAttributes, v.SKU, v.Price, v.StockQty, v.Thumbnail,
+			)
+			if err != nil {
+				return fmt.Errorf("failed to save variation %s: %w", v.SKU, err)
+			}
+		}
+	}
 
-    return tx.Commit(ctx)
+	return tx.Commit(ctx)
 }
 
 // Delete removes a product by ID
@@ -299,11 +301,19 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 		argPos++
 	}
 
-	// Category filter
-	if filter.CategoryID != "" {
-		conditions = append(conditions, fmt.Sprintf("category_id = $%d", argPos))
-		args = append(args, filter.CategoryID)
-		argPos++
+	// Category filter (MULTIPLE)
+	if len(filter.CategoryIDs) > 0 {
+		placeholders := []string{}
+
+		for _, id := range filter.CategoryIDs {
+			placeholders = append(placeholders, fmt.Sprintf("$%d", argPos))
+			args = append(args, id)
+			argPos++
+		}
+
+		conditions = append(conditions,
+			fmt.Sprintf("category_id IN (%s)", strings.Join(placeholders, ",")),
+		)
 	}
 
 	// Search (Tags or Name)
