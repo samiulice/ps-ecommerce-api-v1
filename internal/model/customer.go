@@ -98,7 +98,7 @@ type CustomerResponse struct {
 	Phone           string  `json:"phone"`
 	Image           string  `json:"image"`
 	Email           string  `json:"email,omitempty"`
-	IsWholesaler    bool    `json:"is_wholesaler" db:"is_wholesaler"`
+	IsWholesaler    bool    `json:"is_wholesaler"`
 	IsActive        bool    `json:"is_active"`
 	IsPhoneVerified bool    `json:"is_phone_verified"`
 	IsEmailVerified bool    `json:"is_email_verified"`

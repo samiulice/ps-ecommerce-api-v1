@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS customers (
     apartment_no            VARCHAR(50),
     cm_firebase_token       VARCHAR(255),
     is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    is_wholesaler           BOOLEAN NOT NULL DEFAULT FALSE,
     payment_card_last_four  VARCHAR(255),
     payment_card_brand      VARCHAR(255),
     payment_card_fawry_token TEXT,
@@ -39,13 +40,12 @@ CREATE TABLE IF NOT EXISTS customers (
     referred_by             INTEGER,
     app_language            VARCHAR(255) NOT NULL DEFAULT 'en',
 
-    CONSTRAINT customers_email_unique UNIQUE (email)
+    CONSTRAINT customers_email_unique UNIQUE (email),
+    CONSTRAINT customers_email_phone UNIQUE (phone)
 );
 
 
--- Index for phone lookups (commonly queried)
-CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
-
--- Index for referral code lookups
+-- Index
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
 CREATE INDEX IF NOT EXISTS idx_customers_referral_code ON customers(referral_code);
 

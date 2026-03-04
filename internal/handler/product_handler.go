@@ -134,7 +134,11 @@ func (h *ProductHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	}
 	// Convert Markdown description to sanitized HTML for web rendering
 	product.DescriptionHTML = utils.MarkdownToHTML(product.Description)
-	utils.WriteJSON(w, http.StatusOK, product)
+	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"error":   false,
+		"message": "Product details & variations successfully retrieved retrieved",
+		"product": product,
+	})
 }
 
 // GetProductVariationsByProductID read the id from the path and call service to get the product variations
@@ -155,7 +159,9 @@ func (h *ProductHandler) GetProductVariationsByProductID(w http.ResponseWriter, 
 
 func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	status := strings.TrimSpace(r.URL.Query().Get("status"))
-	search := strings.TrimSpace(r.URL.Query().Get("search"))
+	search := strings.TrimSpace(r.URL.Query().Get("search_text"))
+	sort := strings.TrimSpace(r.URL.Query().Get("sort"))
+	priceType := strings.TrimSpace(r.URL.Query().Get("price_type"))
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
 
@@ -170,6 +176,7 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// sanitize values
 	if page < 1 {
 		page = 1
 	}
@@ -181,6 +188,8 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		Status:      status,
 		CategoryIDs: categoryIDs,
 		Search:      search,
+		Sort:        sort,
+		PriceType:   priceType,
 		Page:        page,
 		Limit:       limit,
 	}
@@ -252,9 +261,11 @@ func (h *ProductHandler) parseProductForm(r *http.Request) (*model.Product, erro
 	}
 
 	// Floats
-	p.UnitPrice, _ = strconv.ParseFloat(r.FormValue("unit_price"), 64)
+	p.RetailPrice, _ = strconv.ParseFloat(r.FormValue("retail_price"), 64)
+	p.WholesalePrice, _ = strconv.ParseFloat(r.FormValue("wholesale_price"), 64)
 	p.PurchasePrice, _ = strconv.ParseFloat(r.FormValue("purchase_price"), 64)
-	p.MinOrderQty, _ = strconv.ParseFloat(r.FormValue("min_order_qty"), 64)
+	p.MinRetailOrderQty, _ = strconv.ParseFloat(r.FormValue("min_retail_order_qty"), 64)
+	p.MinWholesaleOrderQty, _ = strconv.ParseFloat(r.FormValue("min_wholesale_order_qty"), 64)
 	p.CurrentStockQty, _ = strconv.ParseFloat(r.FormValue("current_stock_qty"), 64)
 	p.StockAlertQty, _ = strconv.ParseFloat(r.FormValue("stock_alert_qty"), 64)
 	p.DiscountAmount, _ = strconv.ParseFloat(r.FormValue("discount_amount"), 64)

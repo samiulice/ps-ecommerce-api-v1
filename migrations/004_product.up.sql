@@ -41,10 +41,12 @@ CREATE TABLE IF NOT EXISTS products (
     thumbnail TEXT DEFAULT '',
     gallery_images TEXT[],
 
-    unit_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+    retail_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+    wholesale_price NUMERIC(12,2) NOT NULL DEFAULT 0,
     purchase_price NUMERIC(12,2) DEFAULT 0,
 
-    min_order_qty NUMERIC(12,2) NOT NULL DEFAULT 1,
+    min_retail_order_qty NUMERIC(12,2) NOT NULL DEFAULT 1,
+    min_wholesale_order_qty NUMERIC(12,2) NOT NULL DEFAULT 1,
     current_stock_qty NUMERIC(12,2) NOT NULL DEFAULT 0,
     stock_alert_qty NUMERIC(12,2) NOT NULL DEFAULT 0,
     total_sold NUMERIC(12,2) NOT NULL DEFAULT 0,
