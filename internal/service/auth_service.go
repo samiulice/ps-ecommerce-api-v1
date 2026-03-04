@@ -176,12 +176,12 @@ func (s *AuthService) CustomerLogin(ctx context.Context, emailOrPhone, password 
 	if isEmail {
 		customer, err = s.customers.GetByEmail(ctx, emailOrPhone)
 		if err != nil {
-			return nil, "", "", errors.New("invalid credentials")
+			return nil, "", "", errors.New("invalid credentials(email)")
 		}
 	} else {
 		customer, err = s.customers.GetByPhone(ctx, emailOrPhone)
 		if err != nil {
-			return nil, "", "", errors.New("invalid credentials")
+			return nil, "", "", errors.New("invalid credentials(phone)")
 		}
 	}
 

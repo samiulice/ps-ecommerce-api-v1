@@ -38,7 +38,7 @@ func (r *CustomerRepository) Create(ctx context.Context, u *model.Customer) erro
 		INSERT INTO customers (
 			name, f_name, l_name, phone, image, email, password,
 			street_address, country, city, zip, house_no, apartment_no,
-			is_active, is_phone_verified, is_email_verified, app_language, referral_code, is_wholesaler
+			is_active, is_phone_verified, is_email_verified, app_language, referral_code, is_retailer
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7,
 			$8, $9, $10, $11, $12, $13,
@@ -48,7 +48,7 @@ func (r *CustomerRepository) Create(ctx context.Context, u *model.Customer) erro
 	err := r.db.QueryRow(ctx, query,
 		u.Name, u.FName, u.LName, u.Phone, u.Image, u.Email, u.Password,
 		u.StreetAddress, u.Country, u.City, u.Zip, u.HouseNo, u.ApartmentNo,
-		u.IsActive, u.IsPhoneVerified, u.IsEmailVerified, u.AppLanguage, u.ReferralCode, u.IsWholesaler,
+		u.IsActive, u.IsPhoneVerified, u.IsEmailVerified, u.AppLanguage, u.ReferralCode, u.IsRetailer,
 	).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
 
 	if isCustomerUniqueViolation(err) {
@@ -62,7 +62,7 @@ func (r *CustomerRepository) Create(ctx context.Context, u *model.Customer) erro
 func (r *CustomerRepository) FindByID(ctx context.Context, id int64) (*model.Customer, error) {
 	query := `
 		SELECT 
-			id, name, f_name, l_name, is_wholesaler, phone, image, email, email_verified_at,
+			id, name, f_name, l_name, is_retailer, phone, image, email, email_verified_at,
 			password, remember_token, created_at, updated_at,
 			street_address, country, city, zip, house_no, apartment_no,
 			cm_firebase_token, is_active, payment_card_last_four, payment_card_brand,
@@ -74,7 +74,7 @@ func (r *CustomerRepository) FindByID(ctx context.Context, id int64) (*model.Cus
 
 	u := &model.Customer{}
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&u.ID, &u.Name, &u.FName, &u.LName, &u.IsWholesaler, &u.Phone, &u.Image, &u.Email, &u.EmailVerifiedAt,
+		&u.ID, &u.Name, &u.FName, &u.LName, &u.IsRetailer, &u.Phone, &u.Image, &u.Email, &u.EmailVerifiedAt,
 		&u.Password, &u.RememberToken, &u.CreatedAt, &u.UpdatedAt,
 		&u.StreetAddress, &u.Country, &u.City, &u.Zip, &u.HouseNo, &u.ApartmentNo,
 		&u.CMFirebaseToken, &u.IsActive, &u.PaymentCardLastFour, &u.PaymentCardBrand,
@@ -93,7 +93,7 @@ func (r *CustomerRepository) FindByID(ctx context.Context, id int64) (*model.Cus
 func (r *CustomerRepository) GetByEmail(ctx context.Context, email string) (*model.Customer, error) {
 	query := `
 		SELECT 
-			id, name, f_name, l_name, is_wholesaler, phone, image, email, email_verified_at,
+			id, name, f_name, l_name, is_retailer, phone, image, email, email_verified_at,
 			password, remember_token, created_at, updated_at,
 			street_address, country, city, zip, house_no, apartment_no,
 			cm_firebase_token, is_active, payment_card_last_four, payment_card_brand,
@@ -105,7 +105,7 @@ func (r *CustomerRepository) GetByEmail(ctx context.Context, email string) (*mod
 
 	u := &model.Customer{}
 	err := r.db.QueryRow(ctx, query, email).Scan(
-		&u.ID, &u.Name, &u.FName, &u.LName, &u.IsWholesaler, &u.Phone, &u.Image, &u.Email, &u.EmailVerifiedAt,
+		&u.ID, &u.Name, &u.FName, &u.LName, &u.IsRetailer, &u.Phone, &u.Image, &u.Email, &u.EmailVerifiedAt,
 		&u.Password, &u.RememberToken, &u.CreatedAt, &u.UpdatedAt,
 		&u.StreetAddress, &u.Country, &u.City, &u.Zip, &u.HouseNo, &u.ApartmentNo,
 		&u.CMFirebaseToken, &u.IsActive, &u.PaymentCardLastFour, &u.PaymentCardBrand,

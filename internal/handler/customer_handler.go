@@ -79,7 +79,7 @@ func (h *CustomerHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:            stringToNullString(r.FormValue("name")), // Full Name
 		Phone:           r.FormValue("phone"),                    // Required string
 		Email:           stringToNullString(r.FormValue("email")),
-		IsWholesaler:    parseBool("is_wholesaler"),
+		IsRetailer:    parseBool("is_retailer"),
 		Password:        r.FormValue("password"),
 		StreetAddress:   stringToNullString(r.FormValue("street_address")),
 		City:            stringToNullString(r.FormValue("city")),
