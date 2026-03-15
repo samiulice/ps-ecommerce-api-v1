@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +33,12 @@ func main() {
 	// Database Connections
 	//--------------------------------
 	// 1. Connect to PostgreSQL using pgx pool
-	pgPool, err := database.ConnectPostgres(cfg.DB.PostgresURL)
+	databaseDSN := cfg.DB.PostgresDevURL
+	if cfg.App.Env == "production"{
+		databaseDSN = cfg.DB.PostgresURL
+	}
+	fmt.Println(databaseDSN)
+	pgPool, err := database.ConnectPostgres(databaseDSN)
 	if err != nil {
 		log.Fatal("Postgres connect failed:", err)
 	}
@@ -40,7 +46,7 @@ func main() {
 	log.Println("Postgres connected")
 
 	// 2. Connect to Redis
-	rdb := database.ConnectRedis(cfg.DB.RedisURL)
+	rdb := database.ConnectRedis(cfg.DB.RedisURL, cfg.DB.RedisPassword)
 	defer rdb.Close()
 	log.Println("Redis connected")
 

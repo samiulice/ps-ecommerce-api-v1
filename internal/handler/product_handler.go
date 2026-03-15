@@ -162,8 +162,10 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	search := strings.TrimSpace(r.URL.Query().Get("search_text"))
 	sort := strings.TrimSpace(r.URL.Query().Get("sort"))
 	priceType := strings.TrimSpace(r.URL.Query().Get("price_type"))
+	searchMode := strings.TrimSpace(r.URL.Query().Get("search_mode"))
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	compactMode := searchMode == "suggestion"
 
 	// Multiple category support
 	categoryParams := r.URL.Query()["category_id"]
@@ -192,16 +194,14 @@ func (h *ProductHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 		PriceType:   priceType,
 		Page:        page,
 		Limit:       limit,
+		Compact:     compactMode,
+		SkipCount:   compactMode,
 	}
 
 	products, total, err := h.svc.GetProducts(r.Context(), filter)
 	if err != nil {
 		utils.NotFound(w, err)
 		return
-	}
-
-	for i := range products {
-		products[i].DescriptionHTML = utils.MarkdownToHTML(products[i].Description)
 	}
 
 	utils.WriteJSON(w, http.StatusOK, map[string]interface{}{

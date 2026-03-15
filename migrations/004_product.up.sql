@@ -141,6 +141,18 @@ CREATE INDEX IF NOT EXISTS idx_variations_attributes
 ON product_variations
 USING GIN (variation_attributes);
 
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_products_name_trgm
+ON products
+USING GIN (name gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_tags_trgm
+ON products
+USING GIN (tags gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_status_created_at
+ON products (status, created_at DESC);
 
 -- =============================================
 -- 5. Product Reviews

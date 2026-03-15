@@ -66,8 +66,10 @@ type ProductFilter struct {
 	Status      string  // "active", "inactive"
 	CategoryIDs []int64 // Filter by category
 	Search      string  // Search by name or tags
-	Sort  string  // order by price or date {only "ASC", "DESC" & "LT" is acceptable}, LT mean latest products
+	Sort        string  // order by price or date {only "ASC", "DESC" & "LT" is acceptable}, LT mean latest products
 	PriceType   string  // retail or wholesale order price will be sorted
 	Page        int     // Pagination page
 	Limit       int     // Pagination limit
+	Compact     bool    // Return only lightweight fields for suggestion/search UIs
+	SkipCount   bool    // Skip COUNT(*) when the caller does not need pagination totals
 }

@@ -28,6 +28,7 @@ type DBConfig struct {
 	PostgresURL    string `env:"DATABASE_URL"`
 	PostgresDevURL string `env:"DATABASE_DEV_URL"`
 	RedisURL       string `env:"REDIS_URL"`
+	RedisPassword  string `env:"REDIS_PASSWORD"`
 }
 
 // ServerConfig holds HTTP server tuning options.

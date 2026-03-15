@@ -267,6 +267,12 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 		FROM products
 	`
 	countQuery := `SELECT COUNT(*) FROM products`
+	if filter.Compact {
+		baseQuery = `
+			SELECT id, name, thumbnail, retail_price, wholesale_price
+			FROM products
+		`
+	}
 
 	var conditions []string
 	var args []any
@@ -311,9 +317,11 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 	}
 
 	var totalCount int64
-	err := r.db.QueryRow(ctx, countQuery+whereClause, args...).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, err
+	if !filter.SkipCount {
+		err := r.db.QueryRow(ctx, countQuery+whereClause, args...).Scan(&totalCount)
+		if err != nil {
+			return nil, 0, err
+		}
 	}
 
 	if (filter.Sort == "ASC" || filter.Sort == "DESC") && (filter.PriceType == "retail" || filter.PriceType == "wholesale") {
@@ -344,20 +352,29 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 	var products []*model.Product
 	for rows.Next() {
 		var p model.Product
-		// Scanning a subset of fields for list view optimization
-		err := rows.Scan(
-			&p.ID, &p.Name, &p.Description, &p.CategoryID, &p.SubCategoryID, &p.SubSubCategoryID,
-			&p.BrandID, &p.SKU, &p.Status, &p.UnitID, &p.Tags, &p.Thumbnail, &p.GalleryImages,
-			&p.RetailPrice, &p.WholesalePrice, &p.PurchasePrice, &p.MinRetailOrderQty, &p.MinWholesaleOrderQty, &p.CurrentStockQty, &p.StockAlertQty,
-			&p.TotalSold, &p.DiscountType, &p.DiscountAmount, &p.TaxAmount, &p.TaxType,
-			&p.ShippingCost, &p.ShippingType, &p.HasVariation, &p.VariationAttributes,
-			&p.TotalReviews, &p.AvgRating, &p.FiveStarCount, &p.FourStarCount, &p.ThreeStarCount,
-			&p.TwoStarCount, &p.OneStarCount, &p.CreatedAt, &p.UpdatedAt,
-		)
+		var err error
+		if filter.Compact {
+			err = rows.Scan(&p.ID, &p.Name, &p.Thumbnail, &p.RetailPrice, &p.WholesalePrice)
+		} else {
+			// Scanning a subset of fields for list view optimization
+			err = rows.Scan(
+				&p.ID, &p.Name, &p.Description, &p.CategoryID, &p.SubCategoryID, &p.SubSubCategoryID,
+				&p.BrandID, &p.SKU, &p.Status, &p.UnitID, &p.Tags, &p.Thumbnail, &p.GalleryImages,
+				&p.RetailPrice, &p.WholesalePrice, &p.PurchasePrice, &p.MinRetailOrderQty, &p.MinWholesaleOrderQty, &p.CurrentStockQty, &p.StockAlertQty,
+				&p.TotalSold, &p.DiscountType, &p.DiscountAmount, &p.TaxAmount, &p.TaxType,
+				&p.ShippingCost, &p.ShippingType, &p.HasVariation, &p.VariationAttributes,
+				&p.TotalReviews, &p.AvgRating, &p.FiveStarCount, &p.FourStarCount, &p.ThreeStarCount,
+				&p.TwoStarCount, &p.OneStarCount, &p.CreatedAt, &p.UpdatedAt,
+			)
+		}
 		if err != nil {
 			return nil, 0, err
 		}
 		products = append(products, &p)
+	}
+
+	if filter.SkipCount {
+		totalCount = int64(len(products))
 	}
 
 	return products, totalCount, nil

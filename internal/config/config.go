@@ -25,12 +25,12 @@ func LoadConfig() *Config {
 			Version: getEnv("APP_VERSION", "0.1.0"),
 		},
 		Server: ServerConfig{
-			Port:         getEnvInt("SERVER_PORT", 8080),
-			ReadTimeout:  getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
-			WriteTimeout: getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
-			IdleTimeout:  getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
-			MaxRequests:  getEnvInt("MAX_REQUESTS", 100),
-			RequestWindow:  getEnvDuration("REQUEST_WINDOW", 60*time.Second),
+			Port:          getEnvInt("SERVER_PORT", 8080),
+			ReadTimeout:   getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
+			WriteTimeout:  getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
+			IdleTimeout:   getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
+			MaxRequests:   getEnvInt("MAX_REQUESTS", 100),
+			RequestWindow: getEnvDuration("REQUEST_WINDOW", 60*time.Second),
 		},
 		JWT: JWTConfig{
 			Access: JWTAccessConfig{
@@ -49,6 +49,7 @@ func LoadConfig() *Config {
 			PostgresURL:    getEnv("DATABASE_URL", ""),
 			PostgresDevURL: getEnv("DATABASE_DEV_URL", ""),
 			RedisURL:       getEnv("REDIS_URL", ""),
+			RedisPassword:  getEnv("REDIS_PASSWORD", ""),
 		},
 	}
 
