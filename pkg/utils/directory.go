@@ -50,6 +50,7 @@ func GetCategoryThumbnailURL(filename, ext string) string {
 	return strings.Join([]string{"public", "images", "categories", filename + ext}, "/")
 
 }
+
 // GetBrandFolderPath constructs the full file path for a brand image.
 // It accepts a filename, sanitizes it, and appends it to the brand directory.
 // If the filename is empty, it returns the directory path itself.
@@ -81,6 +82,7 @@ func GetBrandThumbnailURL(filename, ext string) string {
 	return strings.Join([]string{"public", "images", "brands", filename + ext}, "/")
 
 }
+
 // GetProductFolderPath constructs the full file path for a Product images.
 // It accepts a filename, sanitizes it, and appends it to the product directory.
 // If the filename is empty, it returns the directory path itself.
@@ -110,6 +112,7 @@ func GetProductThumbnailURL(filename, ext string) string {
 	filename = sanitizeFilename(filename)
 	return strings.Join([]string{"public", "images", "products", filename + ext}, "/")
 }
+
 // GetCustomerFolderPath constructs the full file path for a customer image.
 // It accepts a filename, sanitizes it, and appends it to the customer directory.
 // If the filename is empty, it returns the directory path itself.
@@ -139,6 +142,7 @@ func GetCustomerImageURL(filename, ext string) string {
 	filename = sanitizeFilename(filename)
 	return strings.Join([]string{"public", "images", "customers", filename + ext}, "/")
 }
+
 // sanitizeFilename removes unsafe characters from filenames
 func sanitizeFilename(name string) string {
 	name = strings.ToLower(name)
@@ -155,32 +159,54 @@ func sanitizeFilename(name string) string {
 	}
 	return string(clean)
 }
+
 // GetHeroFolderPath constructs the full file path for a hero banner image.
 // It accepts a filename, sanitizes it, and appends it to the hero directory.
 // If the filename is empty, it returns the directory path itself.
 // It also ensures the directory exists.
 func GetHeroFolderPath(filename string) string {
-    // Define the specific subdirectory for hero banners
-    basePath := filepath.Join(".", "assets", "public", "images", "hero")
+	// Define the specific subdirectory for hero banners
+	basePath := filepath.Join(".", "assets", "public", "images", "hero")
 
-    // Ensure directory exists
-    _ = os.MkdirAll(basePath, os.ModePerm)
+	// Ensure directory exists
+	_ = os.MkdirAll(basePath, os.ModePerm)
 
-    // Security: Clean the filename to remove unsafe characters
-    filename = sanitizeFilename(filename)
+	// Security: Clean the filename to remove unsafe characters
+	filename = sanitizeFilename(filename)
 
-    // If no filename is provided after sanitization, return the folder path
-    if filename == "" {
-        return basePath
-    }
+	// If no filename is provided after sanitization, return the folder path
+	if filename == "" {
+		return basePath
+	}
 
-    // Combine the base path with the specific filename
-    return filepath.Join(basePath, filename)
+	// Combine the base path with the specific filename
+	return filepath.Join(basePath, filename)
 }
 
 // GetHeroBannerURL constructs the url for a hero banner image.
 // It accepts a filename, ext, sanitizes it, and appends it to the hero directory.
 func GetHeroBannerURL(filename, ext string) string {
-    filename = sanitizeFilename(filename)
-    return strings.Join([]string{"public", "images", "hero", filename + ext}, "/")
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "hero", filename + ext}, "/")
+}
+
+// GetPurchaseAttachmentFolderPath constructs the full file path for purchase attachments.
+// If filename is empty, it returns the directory path itself.
+func GetPurchaseAttachmentFolderPath(filename string) string {
+	basePath := filepath.Join(".", "assets", "public", "images", "purchases")
+
+	_ = os.MkdirAll(basePath, os.ModePerm)
+
+	filename = sanitizeFilename(filename)
+	if filename == "" {
+		return basePath
+	}
+
+	return filepath.Join(basePath, filename)
+}
+
+// GetPurchaseAttachmentURL constructs the URL for a purchase attachment.
+func GetPurchaseAttachmentURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "purchases", filename + ext}, "/")
 }

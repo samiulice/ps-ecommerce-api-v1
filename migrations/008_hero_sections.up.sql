@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS hero_sections;
 
-CREATE TABLE hero_sections (
+
+CREATE TABLE IF NOT EXISTS hero_sections (
     id SERIAL PRIMARY KEY,
     
     -- Main Banner (Left)

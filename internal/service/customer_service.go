@@ -39,12 +39,22 @@ func NewCustomerService(repo *repository.CustomerRepository) *CustomerService {
 
 // Create validates and creates a new customer (Multipart).
 func (s *CustomerService) Create(ctx context.Context, c *model.Customer, file multipart.File, header *multipart.FileHeader) (*model.Customer, error) {
+	c.Phone = strings.TrimSpace(c.Phone)
+	if c.Email.Valid {
+		c.Email.String = strings.ToLower(strings.TrimSpace(c.Email.String))
+		c.Email.Valid = c.Email.String != ""
+	}
+	c.Password = strings.TrimSpace(c.Password)
+
 	// 1. Basic Validation
 	if c.Phone == "" {
 		return nil, ErrInvalidPhone
 	}
+	if c.Email.Valid && !isValidEmail(c.Email.String) {
+		return nil, ErrInvalidEmail
+	}
 	// Password is required for creation
-	if len(c.Password) != 0 && len(c.Password) < 6 {
+	if len(c.Password) < 6 {
 		return nil, ErrInvalidPassword
 	}
 
@@ -109,6 +119,18 @@ func (s *CustomerService) Update(ctx context.Context, c *model.Customer, file mu
 		return nil, errors.New("customer ID is required")
 	}
 
+	c.Phone = strings.TrimSpace(c.Phone)
+	if c.Email.Valid {
+		c.Email.String = strings.ToLower(strings.TrimSpace(c.Email.String))
+		c.Email.Valid = c.Email.String != ""
+	}
+	if c.Phone == "" {
+		return nil, ErrInvalidPhone
+	}
+	if c.Email.Valid && !isValidEmail(c.Email.String) {
+		return nil, ErrInvalidEmail
+	}
+
 	// 1. Fetch Existing Customer
 	existing, err := s.GetByID(ctx, c.ID)
 	if err != nil {
@@ -125,7 +147,19 @@ func (s *CustomerService) Update(ctx context.Context, c *model.Customer, file mu
 			return nil, ErrPhoneAlreadyExists
 		}
 	}
-	// Note: Add Email uniqueness check here if needed
+	currentEmail := ""
+	if existing.Email.Valid {
+		currentEmail = existing.Email.String
+	}
+	if c.Email.Valid && c.Email.String != currentEmail {
+		exists, err := s.repo.ExistsByEmail(ctx, c.Email.String)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, ErrEmailAlreadyExists
+		}
+	}
 
 	// 3. Handle Password
 	// If new password is provided, hash it. Otherwise, keep the old one.

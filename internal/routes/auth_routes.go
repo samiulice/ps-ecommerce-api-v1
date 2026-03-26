@@ -13,14 +13,15 @@ func authRoutes(authHandler *handler.AuthHandler, secretKey string) *chi.Mux {
 	// ==================== ADMIN (Employee) AUTH ====================
 	mux.Route("/admin", func(r chi.Router) {
 		// Public admin routes
-		r.Post("/register", authHandler.EmployeeRegister)
 		r.Post("/login", authHandler.EmployeeLogin)
 		r.Post("/refresh", authHandler.EmployeeRefresh)
 
 		// Protected admin routes
 		r.Group(func(protected chi.Router) {
 			protected.Use(middleware.JWTAuth(secretKey))
+			protected.Use(middleware.RequireEmployee)
 			protected.Get("/me", authHandler.EmployeeMe)
+			protected.With(middleware.RequirePermission("user.create")).Post("/register", authHandler.EmployeeRegister)
 		})
 	})
 

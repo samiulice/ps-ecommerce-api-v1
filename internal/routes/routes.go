@@ -33,15 +33,19 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 	mux.Route("/api/v1", func(r chi.Router) {
 		// Public Routes
 		r.Mount("/auth", authRoutes(handlers.AuthHandler, cfg.JWT.Access.SecretKey))
-		r.Mount("/categories", categoryRoutes(handlers.CategoryHandler))
-		r.Mount("/brands", brandRoutes(handlers.BrandHandler))
-		r.Mount("/products", productRoutes(handlers.ProductHandler))
+		r.Mount("/roles", roleRoutes(handlers.RoleHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/employees", employeeRoutes(handlers.EmployeeHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/categories", categoryRoutes(handlers.CategoryHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/brands", brandRoutes(handlers.BrandHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/products", productRoutes(handlers.ProductHandler, cfg.JWT.Access.SecretKey))
 		r.Mount("/customers", customerRoutes(handlers.CustomerHandler))
-		r.Mount("/orders", orderRoutes(handlers.OrderHandler))
-		r.Mount("/site-settings", siteSettingsRoutes(handlers.SiteSettingsHandler))
-		r.Mount("/branches", branchRoutes(handlers.BranchHandler))
-		r.Mount("/units", UnitRoutes(handlers.UnitHandler))
-		r.Mount("/attributes", AttributeRoutes(handlers.AttributeHandler))
+		r.Mount("/suppliers", supplierRoutes(handlers.SupplierHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/purchases", purchaseRoutes(handlers.PurchaseHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/orders", orderRoutes(handlers.OrderHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/site-settings", siteSettingsRoutes(handlers.SiteSettingsHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/branches", branchRoutes(handlers.BranchHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/units", UnitRoutes(handlers.UnitHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/attributes", AttributeRoutes(handlers.AttributeHandler, cfg.JWT.Access.SecretKey))
 	})
 
 	return mux

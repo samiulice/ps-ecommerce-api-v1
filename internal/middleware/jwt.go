@@ -14,7 +14,9 @@ type ctxKey string
 const (
 	customerIDKey   ctxKey = "customerID"
 	customerTypeKey ctxKey = "customerType"
-	roleKey     ctxKey = "role"
+	roleKey         ctxKey = "role"
+	roleIDKey       ctxKey = "roleID"
+	permissionsKey  ctxKey = "permissions"
 )
 
 // JWTAuth validates JWT access tokens and injects customer ID, type, and role into context.
@@ -67,6 +69,20 @@ func JWTAuth(secret string) func(http.Handler) http.Handler {
 				ctx = context.WithValue(ctx, roleKey, role)
 			}
 
+			if roleID, ok := claims["role_id"].(float64); ok {
+				ctx = context.WithValue(ctx, roleIDKey, int64(roleID))
+			}
+
+			if rawPermissions, ok := claims["permissions"].([]interface{}); ok {
+				permissions := make([]string, 0, len(rawPermissions))
+				for _, item := range rawPermissions {
+					if key, ok := item.(string); ok && strings.TrimSpace(key) != "" {
+						permissions = append(permissions, key)
+					}
+				}
+				ctx = context.WithValue(ctx, permissionsKey, permissions)
+			}
+
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -88,6 +104,16 @@ func CustomerTypeFromContext(ctx context.Context) (string, bool) {
 func RoleFromContext(ctx context.Context) (string, bool) {
 	role, ok := ctx.Value(roleKey).(string)
 	return role, ok
+}
+
+func RoleIDFromContext(ctx context.Context) (int64, bool) {
+	roleID, ok := ctx.Value(roleIDKey).(int64)
+	return roleID, ok
+}
+
+func PermissionsFromContext(ctx context.Context) ([]string, bool) {
+	permissions, ok := ctx.Value(permissionsKey).([]string)
+	return permissions, ok
 }
 
 // IsEmployee checks if the authenticated customer is an employee.
@@ -138,6 +164,50 @@ func RequireRole(roles ...string) func(http.Handler) http.Handler {
 				if role == allowed {
 					next.ServeHTTP(w, r)
 					return
+				}
+			}
+
+			http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
+		})
+	}
+}
+
+func RequirePermission(permission string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			permissions, ok := PermissionsFromContext(r.Context())
+			if !ok {
+				http.Error(w, "forbidden: permissions required", http.StatusForbidden)
+				return
+			}
+
+			for _, key := range permissions {
+				if key == permission {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			http.Error(w, "forbidden: insufficient permissions", http.StatusForbidden)
+		})
+	}
+}
+
+func RequireAnyPermission(permissionKeys ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			permissions, ok := PermissionsFromContext(r.Context())
+			if !ok {
+				http.Error(w, "forbidden: permissions required", http.StatusForbidden)
+				return
+			}
+
+			for _, current := range permissions {
+				for _, allowed := range permissionKeys {
+					if current == allowed {
+						next.ServeHTTP(w, r)
+						return
+					}
 				}
 			}
 

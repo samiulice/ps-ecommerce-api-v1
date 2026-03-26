@@ -3,9 +3,10 @@ package routes
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/handler"
+	"github.com/projuktisheba/pse-api-v1/internal/middleware"
 )
 
-func orderRoutes(h *handler.OrderHandler) chi.Router {
+func orderRoutes(h *handler.OrderHandler, secretKey string) chi.Router {
 	r := chi.NewRouter()
 
 	// Public routes (no auth required for placing orders)
@@ -17,18 +18,23 @@ func orderRoutes(h *handler.OrderHandler) chi.Router {
 	// Protected routes (require authentication)
 	// These can be wrapped with auth middleware in the main routes file
 
-	// Order listing and stats (admin)
-	r.Get("/", h.ListOrders)         // GET /api/v1/orders
-	r.Get("/stats", h.GetOrderStats) // GET /api/v1/orders/stats
+	r.Group(func(admin chi.Router) {
+		admin.Use(employeeAuth(secretKey))
+		admin.Use(middleware.RequireEmployee)
 
-	// Single order operations
-	r.Get("/{id}", h.GetOrder)                           // GET /api/v1/orders/{id}
-	r.Put("/{id}/status", h.UpdateOrderStatus)           // PUT /api/v1/orders/{id}/status
-	r.Put("/{id}/payment-status", h.UpdatePaymentStatus) // PUT /api/v1/orders/{id}/payment-status
-	r.Delete("/{id}", h.DeleteOrder)                     // DELETE /api/v1/orders/{id}
+		// Order listing and stats (admin)
+		admin.With(middleware.RequirePermission("order.view")).Get("/", h.ListOrders)
+		admin.With(middleware.RequirePermission("order.view")).Get("/stats", h.GetOrderStats)
 
-	// Customer orders
-	r.Get("/customer/{customerId}", h.GetCustomerOrders) // GET /api/v1/orders/customer/{customerId}
+		// Single order operations
+		admin.With(middleware.RequirePermission("order.view")).Get("/{id}", h.GetOrder)
+		admin.With(middleware.RequirePermission("order.edit")).Put("/{id}/status", h.UpdateOrderStatus)
+		admin.With(middleware.RequirePermission("order.edit")).Put("/{id}/payment-status", h.UpdatePaymentStatus)
+		admin.With(middleware.RequirePermission("order.delete")).Delete("/{id}", h.DeleteOrder)
+
+		// Customer orders
+		admin.With(middleware.RequirePermission("order.view")).Get("/customer/{customerId}", h.GetCustomerOrders)
+	})
 
 	return r
 }

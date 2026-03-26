@@ -1,6 +1,6 @@
 -- Level 1: Brands
-DROP TABLE IF EXISTS brands;
-CREATE TABLE brands (
+
+CREATE TABLE IF NOT EXISTS brands (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE, 
     thumbnail VARCHAR(255),

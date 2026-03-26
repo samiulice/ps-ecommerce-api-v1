@@ -8,7 +8,10 @@ import (
 // DBRepository contains all individual repository
 type DBRepository struct {
 	EmployeeRepository   *EmployeeRepository
+	RoleRepo             *RoleRepository
 	CustomerRepository   *CustomerRepository
+	SupplierRepo         *SupplierRepo
+	PurchaseRepo         *PurchaseRepo
 	RedisTokenRepository *RedisTokenRepo
 	CategoryRepo         *CategoryRepo
 	BrandRepo            *BrandRepo
@@ -24,7 +27,10 @@ type DBRepository struct {
 func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 	return &DBRepository{
 		EmployeeRepository:   NewEmployeeRepo(db),
+		RoleRepo:             NewRoleRepo(db),
 		CustomerRepository:   NewCustomerRepo(db),
+		SupplierRepo:         NewSupplierRepo(db),
+		PurchaseRepo:         NewPurchaseRepo(db),
 		RedisTokenRepository: NewRedisTokenRepo(rdb),
 		CategoryRepo:         NewCategoryRepo(db),
 		BrandRepo:            NewBrandRepo(db),

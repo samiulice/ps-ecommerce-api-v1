@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -18,15 +19,17 @@ import (
 // AuthService handles authentication workflows for both employees and customers.
 type AuthService struct {
 	employees *repository.EmployeeRepository
+	roles     *repository.RoleRepository
 	customers *repository.CustomerRepository
 	tokens    *repository.RedisTokenRepo
 	secret    string
 }
 
 // NewAuthService constructs an AuthService.
-func NewAuthService(e *repository.EmployeeRepository, u *repository.CustomerRepository, t *repository.RedisTokenRepo, secret string) *AuthService {
+func NewAuthService(e *repository.EmployeeRepository, roles *repository.RoleRepository, u *repository.CustomerRepository, t *repository.RedisTokenRepo, secret string) *AuthService {
 	return &AuthService{
 		employees: e,
+		roles:     roles,
 		customers: u,
 		tokens:    t,
 		secret:    secret,
@@ -36,20 +39,33 @@ func NewAuthService(e *repository.EmployeeRepository, u *repository.CustomerRepo
 // ==================== EMPLOYEE (ADMIN) AUTH ====================
 
 // EmployeeRegister creates a new employee with a hashed password.
-func (s *AuthService) EmployeeRegister(ctx context.Context, email, password, name, mobile, role string) error {
+func (s *AuthService) EmployeeRegister(ctx context.Context, email, password, name, mobile string, roleID int64, roleSlug string, branchID int64) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
+	if branchID <= 0 {
+		branchID = 1
+	}
+
+	role, err := s.resolveEmployeeRole(ctx, roleID, roleSlug)
+	if err != nil {
+		return err
+	}
+
 	return s.employees.Create(ctx, &model.Employee{
-		Name:       name,
-		Email:      email,
-		Password:   string(hash),
-		Mobile:     mobile,
-		Role:       role,
-		IsActive:   true,
-		IsVerified: false,
+		Name:        name,
+		Email:       email,
+		Password:    string(hash),
+		Mobile:      mobile,
+		BranchID:    branchID,
+		RoleID:      role.ID,
+		Role:        role.Slug,
+		RoleName:    role.Name,
+		Permissions: permissionKeys(role.Permissions),
+		IsActive:    true,
+		IsVerified:  false,
 	})
 }
 
@@ -69,7 +85,7 @@ func (s *AuthService) EmployeeLogin(ctx context.Context, email, password string)
 	}
 
 	// Generate tokens with "employee" type prefix
-	access, err := s.generateJWT(employee.ID, "employee", employee.Role, 15*time.Minute)
+	access, err := s.generateJWT(employee.ID, "employee", employee.Role, employee.RoleID, employee.Permissions, 15*time.Minute)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -109,7 +125,7 @@ func (s *AuthService) EmployeeRefresh(ctx context.Context, token string) (string
 		return "", errors.New("customer not found")
 	}
 
-	access, err := s.generateJWT(uid, "employee", employee.Role, 15*time.Minute)
+	access, err := s.generateJWT(uid, "employee", employee.Role, employee.RoleID, employee.Permissions, 15*time.Minute)
 	if err != nil {
 		return "", err
 	}
@@ -248,17 +264,38 @@ func (s *AuthService) CustomerRefresh(ctx context.Context, token string) (string
 // ==================== TOKEN GENERATION ====================
 
 // generateJWT creates a signed JWT access token for employees.
-func (s *AuthService) generateJWT(uid int, customerType, role string, ttl time.Duration) (string, error) {
+func (s *AuthService) generateJWT(uid int, customerType, role string, roleID int64, permissions []string, ttl time.Duration) (string, error) {
 	claims := jwt.MapClaims{
-		"sub":  uid,
-		"type": customerType,
-		"role": role,
-		"exp":  time.Now().Add(ttl).Unix(),
-		"iat":  time.Now().Unix(),
+		"sub":         uid,
+		"type":        customerType,
+		"role":        role,
+		"role_id":     roleID,
+		"permissions": permissions,
+		"exp":         time.Now().Add(ttl).Unix(),
+		"iat":         time.Now().Unix(),
 	}
 
 	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return t.SignedString([]byte(s.secret))
+}
+
+func (s *AuthService) resolveEmployeeRole(ctx context.Context, roleID int64, roleSlug string) (*model.Role, error) {
+	if roleID > 0 {
+		return s.roles.FindByID(ctx, roleID)
+	}
+	roleSlug = strings.TrimSpace(roleSlug)
+	if roleSlug == "" {
+		roleSlug = "staff"
+	}
+	return s.roles.FindBySlug(ctx, roleSlug)
+}
+
+func permissionKeys(permissions []model.Permission) []string {
+	keys := make([]string, 0, len(permissions))
+	for _, permission := range permissions {
+		keys = append(keys, permission.Key)
+	}
+	return keys
 }
 
 // generateCustomerJWT creates a signed JWT access token for customer customers.

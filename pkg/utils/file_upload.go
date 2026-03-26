@@ -99,3 +99,61 @@ func DeleteFile(path string) error {
 
 	return nil
 }
+
+// SaveMultipartDocument saves an uploaded multipart document file to disk.
+// Allowed types: jpg, jpeg, png, webp, pdf.
+func SaveMultipartDocument(
+	file multipart.File,
+	header *multipart.FileHeader,
+	dir string,
+	filename string,
+) (string, error) {
+	if file == nil || header == nil {
+		return "", errors.New("invalid file upload")
+	}
+
+	ext := strings.ToLower(filepath.Ext(header.Filename))
+	allowed := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".webp": true,
+		".pdf":  true,
+	}
+
+	if !allowed[ext] {
+		return "", fmt.Errorf("unsupported file type: %s", ext)
+	}
+
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create upload dir: %w", err)
+	}
+
+	if filename == "" {
+		return "", errors.New("file name required")
+	}
+
+	filename = sanitizeFilename(filename)
+	filename = strings.TrimSuffix(filename, filepath.Ext(filename))
+	filename = filename + ext
+
+	path := filepath.Join(dir, filename)
+
+	dst, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer dst.Close()
+
+	if seeker, ok := file.(io.Seeker); ok {
+		if _, err := seeker.Seek(0, 0); err != nil {
+			return "", fmt.Errorf("failed to seek file: %w", err)
+		}
+	}
+
+	if _, err := io.Copy(dst, file); err != nil {
+		return "", fmt.Errorf("failed to save file: %w", err)
+	}
+
+	return path, nil
+}

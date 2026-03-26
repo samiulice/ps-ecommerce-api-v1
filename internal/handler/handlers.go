@@ -6,10 +6,14 @@ import (
 
 type HandlerRepository struct {
 	AuthHandler         *AuthHandler
+	RoleHandler         *RoleHandler
+	EmployeeHandler     *EmployeeHandler
 	CategoryHandler     *CategoryHandler
 	BrandHandler        *BrandHandler
 	ProductHandler      *ProductHandler
 	CustomerHandler     *CustomerHandler
+	SupplierHandler     *SupplierHandler
+	PurchaseHandler     *PurchaseHandler
 	OrderHandler        *OrderHandler
 	SiteSettingsHandler *SiteSettingsHandler
 	BranchHandler       *BranchHandler
@@ -20,10 +24,14 @@ type HandlerRepository struct {
 func NewHandlerRepository(svc *service.ServiceRepository) *HandlerRepository {
 	return &HandlerRepository{
 		AuthHandler:         NewAuthHandler(svc.AuthService),
+		RoleHandler:         NewRoleHandler(svc.RoleService),
+		EmployeeHandler:     NewEmployeeHandler(svc.EmployeeService),
 		CategoryHandler:     NewCategoryHandler(svc.CategoryService),
 		BrandHandler:        NewBrandHandler(svc.BrandService),
 		ProductHandler:      NewProductHandler(svc.ProductService),
 		CustomerHandler:     NewCustomerHandler(svc.CustomerService),
+		SupplierHandler:     NewSupplierHandler(svc.SupplierService),
+		PurchaseHandler:     NewPurchaseHandler(svc.PurchaseService),
 		OrderHandler:        NewOrderHandler(svc.OrderService),
 		SiteSettingsHandler: NewSiteSettingsHandler(svc.SiteSettingsService),
 		BranchHandler:       NewBranchHandler(svc.BranchService),

@@ -31,6 +31,8 @@ func (h *AuthHandler) EmployeeRegister(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 		Mobile   string `json:"mobile"`
 		Role     string `json:"role"`
+		RoleID   int64  `json:"role_id"`
+		BranchID int64  `json:"branch_id"`
 	}
 	if err := utils.ReadJSON(w, r, &req); err != nil {
 		utils.BadRequest(w, err)
@@ -42,11 +44,7 @@ func (h *AuthHandler) EmployeeRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Role == "" {
-		req.Role = "staff" // default role
-	}
-
-	if err := h.svc.EmployeeRegister(r.Context(), req.Email, req.Password, req.Name, req.Mobile, req.Role); err != nil {
+	if err := h.svc.EmployeeRegister(r.Context(), req.Email, req.Password, req.Name, req.Mobile, req.RoleID, req.Role, req.BranchID); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}
@@ -128,12 +126,16 @@ func (h *AuthHandler) EmployeeMe(w http.ResponseWriter, r *http.Request) {
 
 	customerType, _ := middleware.CustomerTypeFromContext(r.Context())
 	role, _ := middleware.RoleFromContext(r.Context())
+	roleID, _ := middleware.RoleIDFromContext(r.Context())
+	permissions, _ := middleware.PermissionsFromContext(r.Context())
 
 	_ = utils.WriteJSON(w, http.StatusOK, map[string]any{
 		"error":         false,
 		"customer_id":   uid,
 		"customer_type": customerType,
 		"role":          role,
+		"role_id":       roleID,
+		"permissions":   permissions,
 	})
 }
 
