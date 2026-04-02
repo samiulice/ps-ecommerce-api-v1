@@ -89,7 +89,9 @@ VALUES
     ('settings.edit', 'Edit Settings', 'settings', 'Can update site settings'),
     ('order.view', 'View Orders', 'orders', 'Can view orders'),
     ('order.edit', 'Edit Orders', 'orders', 'Can update order status and payment state'),
-    ('order.delete', 'Delete Orders', 'orders', 'Can delete orders')
+    ('order.delete', 'Delete Orders', 'orders', 'Can delete orders'),
+    ('pos.create', 'Create POS Sales', 'pos', 'Can create point of sale transactions and invoices'),
+    ('report.view', 'View Reports', 'reports', 'Can view POS, Orders, Dues, and Stock reports')
 ON CONFLICT (key) DO NOTHING;
 
 INSERT INTO roles (name, slug, description, is_active)
@@ -117,7 +119,7 @@ JOIN permissions p ON p.key IN (
     'brand.view', 'brand.create', 'brand.edit',
     'supplier.view', 'supplier.create', 'supplier.edit',
     'purchase.view', 'purchase.create', 'purchase.edit',
-    'branch.view', 'unit.view', 'attribute.view', 'settings.view', 'settings.edit', 'order.view', 'order.edit'
+    'branch.view', 'unit.view', 'attribute.view', 'settings.view', 'settings.edit', 'order.view', 'order.edit', 'pos.create', 'report.view'
 )
 WHERE r.slug = 'manager'
 ON CONFLICT DO NOTHING;
@@ -128,7 +130,7 @@ FROM roles r
 JOIN permissions p ON p.key IN (
     'product.view', 'category.view', 'brand.view',
     'supplier.view', 'purchase.view', 'purchase.create',
-    'order.view', 'unit.view', 'attribute.view'
+    'order.view', 'unit.view', 'attribute.view', 'pos.create'
 )
 WHERE r.slug = 'staff'
 ON CONFLICT DO NOTHING;

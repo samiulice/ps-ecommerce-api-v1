@@ -21,6 +21,8 @@ type DBRepository struct {
 	BranchRepo           *BranchRepo
 	UnitRepo             *UnitRepo
 	AttributeRepo        *AttributeRepo
+	POSRepo              *POSRepo
+	ReportRepo           *ReportRepo
 }
 
 // NewDBRepository initializes all repositories with a shared connection pool
@@ -40,5 +42,7 @@ func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 		BranchRepo:           NewBranchRepo(db),
 		UnitRepo:             NewUnitRepo(db),
 		AttributeRepo:        NewAttributeRepo(db),
+		POSRepo:              NewPOSRepo(db),
+		ReportRepo:           NewReportRepo(db),
 	}
 }

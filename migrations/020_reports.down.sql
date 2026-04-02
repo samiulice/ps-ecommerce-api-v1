@@ -1,0 +1,1 @@
+ALTER TABLE orders DROP COLUMN IF EXISTS sale_type;
