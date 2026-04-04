@@ -265,3 +265,37 @@ func decodeSocialLinkRequest(w http.ResponseWriter, r *http.Request) (*model.Soc
 		DisplayOrder: req.DisplayOrder,
 	}, nil
 }
+
+// -------------------------
+// General Settings
+// -------------------------
+func (h *SiteSettingsHandler) GetGeneralSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := h.svc.GetGeneralSettings(r.Context())
+	if err != nil {
+		utils.NotFound(w, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]any{
+		"error":    false,
+		"settings": settings,
+	})
+}
+
+func (h *SiteSettingsHandler) UpdateGeneralSettings(w http.ResponseWriter, r *http.Request) {
+	var req model.GeneralSettings
+	if err := utils.ReadJSON(w, r, &req); err != nil {
+		utils.BadRequest(w, err)
+		return
+	}
+
+	if err := h.svc.UpdateGeneralSettings(r.Context(), &req); err != nil {
+		utils.BadRequest(w, err)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, map[string]any{
+		"error":   false,
+		"message": "Settings updated successfully",
+	})
+}

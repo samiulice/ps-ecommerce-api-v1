@@ -221,6 +221,22 @@ func (s *CustomerService) ListCustomers(ctx context.Context, filter model.Custom
 	return responses, total, nil
 }
 
+// SuggestCustomers returns lightweight customer suggestions for POS autocomplete.
+func (s *CustomerService) SuggestCustomers(ctx context.Context, search string, limit int) ([]*model.CustomerResponse, error) {
+	customers, err := s.repo.Suggest(ctx, search, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]*model.CustomerResponse, 0, len(customers))
+	for i := range customers {
+		customer := customers[i]
+		responses = append(responses, &customer)
+	}
+
+	return responses, nil
+}
+
 // GetByID retrieves a customer by ID.
 func (s *CustomerService) GetByID(ctx context.Context, id int64) (*model.Customer, error) {
 	if id <= 0 {

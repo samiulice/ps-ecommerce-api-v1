@@ -15,7 +15,8 @@ func posRoutes(h *handler.POSHandler, secretKey string) chi.Router {
 
 		// Create a pos sale
 		admin.With(middleware.RequirePermission("pos.create")).Post("/sale", h.CreateSale)
-	})
+                admin.With(middleware.RequirePermission("pos.view")).Get("/sale/{reference}", h.GetSaleByReference)
+        })
 
-	return r
+        return r
 }

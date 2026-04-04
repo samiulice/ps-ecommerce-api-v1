@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/model"
@@ -79,7 +80,7 @@ func (h *CustomerHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Name:            stringToNullString(r.FormValue("name")), // Full Name
 		Phone:           r.FormValue("phone"),                    // Required string
 		Email:           stringToNullString(r.FormValue("email")),
-		IsRetailer:    parseBool("is_retailer"),
+		IsRetailer:      parseBool("is_retailer"),
 		Password:        r.FormValue("password"),
 		StreetAddress:   stringToNullString(r.FormValue("street_address")),
 		City:            stringToNullString(r.FormValue("city")),
@@ -245,6 +246,38 @@ func (h *CustomerHandler) ListCustomers(w http.ResponseWriter, r *http.Request) 
 		"page":        page,
 		"limit":       limit,
 		"total_pages": totalPages,
+	})
+}
+
+// SuggestCustomers handles GET /customers/suggestions for POS customer lookup.
+func (h *CustomerHandler) SuggestCustomers(w http.ResponseWriter, r *http.Request) {
+	search := strings.TrimSpace(r.URL.Query().Get("search"))
+	if search == "" {
+		utils.OK(w, "Customer suggestions retrieved successfully", map[string]interface{}{
+			"customers": []*model.CustomerResponse{},
+			"total":     0,
+		})
+		return
+	}
+
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 20 {
+		limit = 20
+	}
+
+	customers, err := h.svc.SuggestCustomers(r.Context(), search, limit)
+	if err != nil {
+		fmt.Println(err)
+		h.handleServiceError(w, err)
+		return
+	}
+
+	utils.OK(w, "Customer suggestions retrieved successfully", map[string]interface{}{
+		"customers": customers,
+		"total":     len(customers),
 	})
 }
 

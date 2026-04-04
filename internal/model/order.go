@@ -15,6 +15,7 @@ type Order struct {
 	CustomerEmail   sql.NullString `json:"customer_email"`
 	CustomerArea    sql.NullString `json:"customer_area"`
 	CustomerCity    sql.NullString `json:"customer_city"`
+	SaleType        string         `json:"sale_type"`
 	PaymentMethod   string         `json:"payment_method"`
 	PaymentStatus   string         `json:"payment_status"`
 	OrderStatus     string         `json:"order_status"`
@@ -72,6 +73,7 @@ type CreateOrderRequest struct {
 	Customer      OrderCustomer      `json:"customer"`
 	CreateAccount bool               `json:"create_account"`
 	PaymentMethod string             `json:"payment_method"`
+	SaleType      string             `json:"sale_type"`
 	Items         []OrderItemRequest `json:"items"`
 	Subtotal      float64            `json:"subtotal"`
 	ShippingCost  float64            `json:"shipping_cost,omitempty"`
@@ -113,6 +115,7 @@ type OrderResponse struct {
 	CustomerArea    *string             `json:"customer_area,omitempty"`
 	CustomerCity    *string             `json:"customer_city,omitempty"`
 	PaymentMethod   string              `json:"payment_method"`
+	SaleType        string              `json:"sale_type"`
 	PaymentStatus   string              `json:"payment_status"`
 	OrderStatus     string              `json:"order_status"`
 	Subtotal        float64             `json:"subtotal"`
@@ -163,6 +166,7 @@ func (o *Order) ToOrderResponse() OrderResponse {
 		OrderNumber:    o.OrderNumber,
 		CustomerName:   o.CustomerName,
 		CustomerMobile: o.CustomerMobile,
+		SaleType:       o.SaleType,
 		PaymentMethod:  o.PaymentMethod,
 		PaymentStatus:  o.PaymentStatus,
 		OrderStatus:    o.OrderStatus,

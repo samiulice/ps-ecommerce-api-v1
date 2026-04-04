@@ -19,6 +19,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS orders (
     id BIGSERIAL PRIMARY KEY,
     order_number VARCHAR(50) UNIQUE NOT NULL,
+    sale_type VARCHAR(50) DEFAULT 'retail',
     customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
     customer_name VARCHAR(100) NOT NULL,
     customer_mobile VARCHAR(20) NOT NULL,

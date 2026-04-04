@@ -82,3 +82,46 @@ func (r *POSRepo) CreateSale(ctx context.Context, sale *model.POSSale) (*model.P
 
 	return sale, nil
 }
+func (r *POSRepo) GetSaleByReference(ctx context.Context, referenceNo string) (*model.POSSale, error) {
+	sale := &model.POSSale{}
+	query := `
+                SELECT id, reference_no, customer_id, branch_id, sale_type, subtotal, discount,
+                       tax, total, amount_paid, payment_method, payment_status, sale_date, sale_note, created_at, updated_at
+                FROM pos_sales
+                WHERE reference_no = $1
+        `
+	err := r.db.QueryRow(ctx, query, referenceNo).Scan(
+		&sale.ID, &sale.ReferenceNo, &sale.CustomerID, &sale.BranchID, &sale.SaleType, &sale.Subtotal, &sale.Discount,
+		&sale.Tax, &sale.Total, &sale.AmountPaid, &sale.PaymentMethod, &sale.PaymentStatus, &sale.SaleDate, &sale.SaleNote, &sale.CreatedAt, &sale.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("pos sale not found")
+		}
+		return nil, fmt.Errorf("failed to get pos sale: %w", err)
+	}
+
+	itemsQuery := `
+                SELECT id, pos_sale_id, product_id, product_variation_id, product_name, quantity, unit_price, subtotal, tax_amount, total
+                FROM pos_sale_items
+                WHERE pos_sale_id = $1
+        `
+	rows, err := r.db.Query(ctx, itemsQuery, sale.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pos sale items: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item model.POSSaleItem
+		err := rows.Scan(
+			&item.ID, &item.POSSaleID, &item.ProductID, &item.ProductVariationID, &item.ProductName, &item.Quantity, &item.UnitPrice, &item.Subtotal, &item.TaxAmount, &item.Total,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan pos sale item: %w", err)
+		}
+		sale.Items = append(sale.Items, item)
+	}
+
+	return sale, nil
+}

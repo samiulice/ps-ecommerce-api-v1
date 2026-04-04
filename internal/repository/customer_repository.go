@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -383,4 +384,96 @@ func (r *CustomerRepository) List(ctx context.Context, filter model.CustomerFilt
 	}
 
 	return customers, total, nil
+}
+
+// Suggest returns active customer suggestions for POS search.
+func (r *CustomerRepository) Suggest(ctx context.Context, search string, limit int) ([]model.CustomerResponse, error) {
+	search = strings.TrimSpace(search)
+	if search == "" {
+		return []model.CustomerResponse{}, nil
+	}
+
+	if limit <= 0 {
+		limit = 10
+	}
+
+	pattern := "%" + search + "%"
+	query := `
+		SELECT
+			id,
+			COALESCE(NULLIF(name, ''), NULLIF(TRIM(CONCAT_WS(' ', f_name, l_name)), ''), phone) AS display_name,
+			phone,
+			COALESCE(image, '') AS image,
+			COALESCE(email, '') AS email,
+			is_active,
+			is_phone_verified,
+			is_email_verified,
+			COALESCE(wallet_balance, 0),
+			COALESCE(loyalty_point, 0),
+			COALESCE(referral_code, ''),
+			COALESCE(app_language, '')
+		FROM customers
+		WHERE is_active = TRUE
+		  AND (
+			COALESCE(name, '') ILIKE $1 OR
+			COALESCE(f_name, '') ILIKE $1 OR
+			COALESCE(l_name, '') ILIKE $1 OR
+			phone ILIKE $1
+		  )
+		ORDER BY id DESC
+		LIMIT $2`
+
+	rows, err := r.db.Query(ctx, query, pattern, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query customer suggestions: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []model.CustomerResponse
+	for rows.Next() {
+		var customer model.CustomerResponse
+		var name string
+		var email sql.NullString
+		var walletBalance float64
+		var loyaltyPoint float64
+		var referralCode sql.NullString
+		var appLanguage sql.NullString
+
+		if err := rows.Scan(
+			&customer.ID,
+			&name,
+			&customer.Phone,
+			&customer.Image,
+			&email,
+			&customer.IsActive,
+			&customer.IsPhoneVerified,
+			&customer.IsEmailVerified,
+			&walletBalance,
+			&loyaltyPoint,
+			&referralCode,
+			&appLanguage,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan customer suggestion: %w", err)
+		}
+
+		customer.Name = name
+		if email.Valid {
+			customer.Email = email.String
+		}
+		customer.WalletBalance = walletBalance
+		customer.LoyaltyPoint = loyaltyPoint
+		if referralCode.Valid {
+			customer.ReferralCode = referralCode.String
+		}
+		if appLanguage.Valid {
+			customer.AppLanguage = appLanguage.String
+		}
+		customers = append(customers, customer)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating customer suggestion rows: %w", err)
+	}
+
+	return customers, nil
 }

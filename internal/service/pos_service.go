@@ -16,7 +16,9 @@ type POSService struct {
 func NewPOSService(posRepo *repository.POSRepo) *POSService {
 	return &POSService{posRepo: posRepo}
 }
-
+func (s *POSService) GetPOSSaleByReference(ctx context.Context, referenceNo string) (*model.POSSale, error) {
+	return s.posRepo.GetSaleByReference(ctx, referenceNo)
+}
 func (s *POSService) CreatePOSSale(ctx context.Context, req model.CreatePOSSaleRequest) (*model.POSSale, error) {
 	sale := &model.POSSale{
 		ReferenceNo:   fmt.Sprintf("POS-%d", time.Now().Unix()),

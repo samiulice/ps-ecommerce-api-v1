@@ -249,3 +249,18 @@ func validateSocialLink(link *model.SocialLink) error {
 
 	return nil
 }
+
+// -------------------------
+// General Settings
+// -------------------------
+
+func (s *SiteSettingsService) GetGeneralSettings(ctx context.Context) (*model.GeneralSettings, error) {
+	return s.repo.GetGeneralSettings(ctx)
+}
+
+func (s *SiteSettingsService) UpdateGeneralSettings(ctx context.Context, settings *model.GeneralSettings) error {
+	if settings.CompanyName == "" {
+		return errors.New("company name is required")
+	}
+	return s.repo.UpdateGeneralSettings(ctx, settings)
+}

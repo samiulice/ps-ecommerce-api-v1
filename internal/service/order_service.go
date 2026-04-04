@@ -76,6 +76,7 @@ func (s *OrderService) PlaceOrder(ctx context.Context, req model.CreateOrderRequ
 		Discount:       req.Discount,
 		Tax:            req.Tax,
 		Total:          req.Total,
+		SaleType:       req.SaleType,
 		OrderNote:      model.ToNullString(req.OrderNote),
 	}
 

@@ -9,6 +9,11 @@ import (
 func siteSettingsRoutes(h *handler.SiteSettingsHandler, secretKey string) *chi.Mux {
 	mux := chi.NewRouter()
 
+	mux.Route("/general", func(r chi.Router) {
+		r.Get("/", h.GetGeneralSettings)
+		r.With(employeeAuth(secretKey), middleware.RequireEmployee, middleware.RequirePermission("settings.edit")).Post("/update", h.UpdateGeneralSettings)
+	})
+
 	mux.Route("/hero", func(r chi.Router) {
 		r.Get("/", h.GetHeroSection)
 		r.With(employeeAuth(secretKey), middleware.RequireEmployee, middleware.RequirePermission("settings.edit")).Post("/update", h.UpdateHeroSection)

@@ -10,10 +10,12 @@ import (
 func customerRoutes(h *handler.CustomerHandler) *chi.Mux {
 	mux := chi.NewRouter()
 
-	
+	// GET /customers/suggestions - lightweight customer search for POS autocomplete
+	mux.Get("/suggestions", h.SuggestCustomers)
+
 	// GET /customers/list - get all customers
 	mux.Get("/list", h.ListCustomers)
-	
+
 	// POST /customers/new - Create a new customer
 	mux.Post("/new", h.Create)
 

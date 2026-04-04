@@ -251,3 +251,42 @@ func (r *SiteSettingsRepo) ListTopbarSocialLinks(ctx context.Context, limit int)
 
 	return links, rows.Err()
 }
+
+// -------------------------
+// General Settings
+// -------------------------
+func (r *SiteSettingsRepo) GetGeneralSettings(ctx context.Context) (*model.GeneralSettings, error) {
+	query := `
+		SELECT id, company_name, company_logo, company_address, currency_symbol, currency_code, created_at, updated_at
+		FROM general_settings WHERE id = 1
+	`
+	s := &model.GeneralSettings{}
+	err := r.db.QueryRow(ctx, query).Scan(
+		&s.ID, &s.CompanyName, &s.CompanyLogo, &s.CompanyAddress, &s.CurrencySymbol, &s.CurrencyCode, &s.CreatedAt, &s.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("general settings not found")
+		}
+		return nil, fmt.Errorf("failed to fetch general settings: %w", err)
+	}
+	return s, nil
+}
+
+func (r *SiteSettingsRepo) UpdateGeneralSettings(ctx context.Context, s *model.GeneralSettings) error {
+	query := `
+		UPDATE general_settings SET 
+			company_name = $1,
+			company_logo = $2,
+			company_address = $3,
+			currency_symbol = $4,
+			currency_code = $5,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = 1
+	`
+	_, err := r.db.Exec(ctx, query, s.CompanyName, s.CompanyLogo, s.CompanyAddress, s.CurrencySymbol, s.CurrencyCode)
+	if err != nil {
+		return fmt.Errorf("failed to update general settings: %w", err)
+	}
+	return nil
+}

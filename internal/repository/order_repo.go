@@ -59,9 +59,9 @@ func (r *OrderRepo) Create(ctx context.Context, order *model.Order, items []mode
 		INSERT INTO orders (
 			order_number, customer_id, customer_name, customer_mobile, customer_email,
 			customer_area, customer_city, payment_method, payment_status, order_status,
-			subtotal, shipping_cost, discount, tax, total, order_note
+			subtotal, shipping_cost, discount, tax, total, order_note, sale_type
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 		)
 		RETURNING id, created_at, updated_at
 	`
@@ -83,6 +83,7 @@ func (r *OrderRepo) Create(ctx context.Context, order *model.Order, items []mode
 		order.Tax,
 		order.Total,
 		order.OrderNote,
+		order.SaleType,
 	).Scan(&order.ID, &order.CreatedAt, &order.UpdatedAt)
 
 	if err != nil {
@@ -128,7 +129,7 @@ func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error
 	query := `
 		SELECT id, order_number, customer_id, customer_name, customer_mobile, customer_email,
 			customer_area, customer_city, payment_method, payment_status, order_status,
-			subtotal, shipping_cost, discount, tax, total, order_note,
+			subtotal, shipping_cost, discount, tax, total, order_note, sale_type,
 			created_at, updated_at, delivered_at, cancelled_at, cancelled_reason
 		FROM orders
 		WHERE id = $1
@@ -140,7 +141,8 @@ func (r *OrderRepo) FindByID(ctx context.Context, id int64) (*model.Order, error
 		&order.CustomerMobile, &order.CustomerEmail, &order.CustomerArea, &order.CustomerCity,
 		&order.PaymentMethod, &order.PaymentStatus, &order.OrderStatus,
 		&order.Subtotal, &order.ShippingCost, &order.Discount, &order.Tax, &order.Total,
-		&order.OrderNote, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
+		&order.OrderNote,
+		&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
 		&order.CancelledAt, &order.CancelledReason,
 	)
 
@@ -159,7 +161,7 @@ func (r *OrderRepo) FindByOrderNumber(ctx context.Context, orderNumber string) (
 	query := `
 		SELECT id, order_number, customer_id, customer_name, customer_mobile, customer_email,
 			customer_area, customer_city, payment_method, payment_status, order_status,
-			subtotal, shipping_cost, discount, tax, total, order_note,
+			subtotal, shipping_cost, discount, tax, total, order_note, sale_type,
 			created_at, updated_at, delivered_at, cancelled_at, cancelled_reason
 		FROM orders
 		WHERE order_number = $1
@@ -171,7 +173,8 @@ func (r *OrderRepo) FindByOrderNumber(ctx context.Context, orderNumber string) (
 		&order.CustomerMobile, &order.CustomerEmail, &order.CustomerArea, &order.CustomerCity,
 		&order.PaymentMethod, &order.PaymentStatus, &order.OrderStatus,
 		&order.Subtotal, &order.ShippingCost, &order.Discount, &order.Tax, &order.Total,
-		&order.OrderNote, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
+		&order.OrderNote,
+		&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
 		&order.CancelledAt, &order.CancelledReason,
 	)
 
@@ -292,7 +295,7 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 	query := fmt.Sprintf(`
 		SELECT id, order_number, customer_id, customer_name, customer_mobile, customer_email,
 			customer_area, customer_city, payment_method, payment_status, order_status,
-			subtotal, shipping_cost, discount, tax, total, order_note,
+			subtotal, shipping_cost, discount, tax, total, order_note, sale_type,
 			created_at, updated_at, delivered_at, cancelled_at, cancelled_reason
 		FROM orders
 		%s
@@ -316,7 +319,8 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 			&order.CustomerMobile, &order.CustomerEmail, &order.CustomerArea, &order.CustomerCity,
 			&order.PaymentMethod, &order.PaymentStatus, &order.OrderStatus,
 			&order.Subtotal, &order.ShippingCost, &order.Discount, &order.Tax, &order.Total,
-			&order.OrderNote, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
+			&order.OrderNote,
+		&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
 			&order.CancelledAt, &order.CancelledReason,
 		)
 		if err != nil {

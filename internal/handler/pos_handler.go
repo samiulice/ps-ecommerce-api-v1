@@ -2,8 +2,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/service"
 	"github.com/projuktisheba/pse-api-v1/pkg/utils"
@@ -31,4 +33,19 @@ func (h *POSHandler) CreateSale(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.Created(w, "POS sale created successfully", sale)
+}
+func (h *POSHandler) GetSaleByReference(w http.ResponseWriter, r *http.Request) {
+	referenceNo := chi.URLParam(r, "reference")
+	if referenceNo == "" {
+		utils.BadRequest(w, fmt.Errorf("reference number is required"))
+		return
+	}
+
+	sale, err := h.posService.GetPOSSaleByReference(r.Context(), referenceNo)
+	if err != nil {
+                utils.NotFound(w, err)
+                return
+        }
+
+        utils.OK(w, "POS sale retrieved successfully", sale)
 }
