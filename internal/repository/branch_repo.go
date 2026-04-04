@@ -23,11 +23,11 @@ func (r *BranchRepo) Create(ctx context.Context, b *model.Branch) error {
 		(name, country, city, address, mobile, telephone, email, latitude, longitude) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
 		RETURNING id, created_at, updated_at`
-		
-	err := r.db.QueryRow(ctx, query, 
+
+	err := r.db.QueryRow(ctx, query,
 		b.Name, b.Country, b.City, b.Address, b.Mobile, b.Telephone, b.Email, b.Latitude, b.Longitude).
 		Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt)
-		
+
 	if isUniqueViolation(err) {
 		return fmt.Errorf("branch name '%s' already exists", b.Name)
 	}
@@ -38,11 +38,11 @@ func (r *BranchRepo) Update(ctx context.Context, b *model.Branch) error {
 	query := `UPDATE branches SET 
 		name=$1, country=$2, city=$3, address=$4, mobile=$5, telephone=$6, email=$7, latitude=$8, longitude=$9, updated_at=CURRENT_TIMESTAMP
 		WHERE id=$10 RETURNING created_at, updated_at`
-		
-	err := r.db.QueryRow(ctx, query, 
+
+	err := r.db.QueryRow(ctx, query,
 		b.Name, b.Country, b.City, b.Address, b.Mobile, b.Telephone, b.Email, b.Latitude, b.Longitude, b.ID).
 		Scan(&b.CreatedAt, &b.UpdatedAt)
-		
+
 	if isUniqueViolation(err) {
 		return fmt.Errorf("branch name '%s' already exists", b.Name)
 	}

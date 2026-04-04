@@ -21,6 +21,7 @@ type HandlerRepository struct {
 	AttributeHandler    *AttributeHandler
 	POSHandler          *POSHandler
 	ReportHandler       *ReportHandler
+	DeliveryHandler     *DeliveryHandler
 }
 
 func NewHandlerRepository(svc *service.ServiceRepository) *HandlerRepository {
@@ -41,5 +42,6 @@ func NewHandlerRepository(svc *service.ServiceRepository) *HandlerRepository {
 		AttributeHandler:    NewAttributeHandler(svc.AttributeService),
 		POSHandler:          NewPOSHandler(svc.POSService),
 		ReportHandler:       NewReportHandler(svc.ReportService),
+		DeliveryHandler:     NewDeliveryHandler(svc.DeliveryService),
 	}
 }

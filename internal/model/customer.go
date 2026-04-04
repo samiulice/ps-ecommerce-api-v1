@@ -14,7 +14,7 @@ type Customer struct {
 	Phone                 string          `json:"phone" db:"phone"`
 	Image                 string          `json:"image" db:"image"`
 	Email                 sql.NullString  `json:"email,omitempty" db:"email"`
-	IsRetailer          bool            `json:"is_retailer" db:"is_retailer"`
+	IsRetailer            bool            `json:"is_retailer" db:"is_retailer"`
 	EmailVerifiedAt       sql.NullTime    `json:"email_verified_at,omitempty" db:"email_verified_at"`
 	Password              string          `json:"-" db:"password"`
 	RememberToken         sql.NullString  `json:"-" db:"remember_token"`
@@ -64,12 +64,12 @@ type CustomerFilter struct {
 
 // CustomerCreateRequest represents the payload for creating a new customer.
 type CustomerCreateRequest struct {
-	Name         string `json:"name"`
-	FName        string `json:"f_name"`
-	LName        string `json:"l_name"`
-	Phone        string `json:"phone"`
-	Email        string `json:"email"`
-	Password     string `json:"password"`
+	Name       string `json:"name"`
+	FName      string `json:"f_name"`
+	LName      string `json:"l_name"`
+	Phone      string `json:"phone"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
 	IsRetailer bool   `json:"is_retailer"`
 }
 
@@ -98,7 +98,7 @@ type CustomerResponse struct {
 	Phone           string  `json:"phone"`
 	Image           string  `json:"image"`
 	Email           string  `json:"email,omitempty"`
-	IsRetailer    bool    `json:"is_retailer"`
+	IsRetailer      bool    `json:"is_retailer"`
 	IsActive        bool    `json:"is_active"`
 	IsPhoneVerified bool    `json:"is_phone_verified"`
 	IsEmailVerified bool    `json:"is_email_verified"`
@@ -121,7 +121,7 @@ func (u *Customer) ToResponse() *CustomerResponse {
 	resp := &CustomerResponse{
 		ID:              u.ID,
 		Phone:           u.Phone,
-		IsRetailer:    u.IsRetailer,
+		IsRetailer:      u.IsRetailer,
 		Image:           u.Image,
 		IsActive:        u.IsActive,
 		IsPhoneVerified: u.IsPhoneVerified,

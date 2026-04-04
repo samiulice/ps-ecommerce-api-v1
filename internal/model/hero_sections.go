@@ -7,9 +7,9 @@ type HeroSection struct {
 
 	// Main Banner (Left)
 	// Changed from MainBannerImg to MainBanner to match repo usage
-	MainBanner   string `json:"main_banner"` 
+	MainBanner   string `json:"main_banner"`
 	MainTitle    string `json:"main_title"`
-	MainSubtitle string `json:"main_subtitle"` 
+	MainSubtitle string `json:"main_subtitle"`
 
 	// Side Top Banner (Right Top)
 	SideTopBanner string `json:"side_top_banner"` // Changed to match repo

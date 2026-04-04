@@ -89,9 +89,9 @@ func (h *AttributeHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 	// Wrapping in a standard response format if you prefer
 	var response struct {
-		Error   bool          `json:"error"`
-		Message string        `json:"message"`
-		Attributes   []*model.Attribute `json:"attributes"`
+		Error      bool               `json:"error"`
+		Message    string             `json:"message"`
+		Attributes []*model.Attribute `json:"attributes"`
 	}
 	response.Error = false
 	response.Message = "Attributes retrieved"

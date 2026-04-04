@@ -279,8 +279,8 @@ func (h *CategoryHandler) GetSubSubCategories(w http.ResponseWriter, r *http.Req
 		return
 	}
 	var response struct {
-		Error       bool                 `json:"error"`
-		Message     string               `json:"message"`
+		Error          bool                    `json:"error"`
+		Message        string                  `json:"message"`
 		SubSubCategory []*model.SubSubCategory `json:"sub_sub_categories"`
 	}
 	response.Error = false
@@ -288,7 +288,6 @@ func (h *CategoryHandler) GetSubSubCategories(w http.ResponseWriter, r *http.Req
 	response.SubSubCategory = subSub
 	utils.WriteJSON(w, http.StatusOK, response)
 }
-
 
 // Tree View
 func (h *CategoryHandler) GetTree(w http.ResponseWriter, r *http.Request) {

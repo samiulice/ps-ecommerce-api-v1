@@ -43,9 +43,9 @@ func (h *POSHandler) GetSaleByReference(w http.ResponseWriter, r *http.Request) 
 
 	sale, err := h.posService.GetPOSSaleByReference(r.Context(), referenceNo)
 	if err != nil {
-                utils.NotFound(w, err)
-                return
-        }
+		utils.NotFound(w, err)
+		return
+	}
 
-        utils.OK(w, "POS sale retrieved successfully", sale)
+	utils.OK(w, "POS sale retrieved successfully", sale)
 }

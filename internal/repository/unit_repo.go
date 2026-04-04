@@ -22,9 +22,9 @@ func NewUnitRepo(db *pgxpool.Pool) *UnitRepo {
 func (r *UnitRepo) Create(ctx context.Context, u *model.Unit) error {
 	query := `INSERT INTO units (name, symbol) 
 	          VALUES ($1, $2) RETURNING id, created_at, updated_at`
-	
+
 	err := r.db.QueryRow(ctx, query, u.Name, u.Symbol).Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt)
-	
+
 	// Reuse your existing unique violation helper if available, or check manually
 	if err != nil && isUniqueViolation(err) {
 		return fmt.Errorf("unit name '%s' already exists", u.Name)
@@ -35,9 +35,9 @@ func (r *UnitRepo) Create(ctx context.Context, u *model.Unit) error {
 // Update modifies an existing unit
 func (r *UnitRepo) Update(ctx context.Context, u *model.Unit) error {
 	query := `UPDATE units SET name=$1, symbol=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$3`
-	
+
 	_, err := r.db.Exec(ctx, query, u.Name, u.Symbol, u.ID)
-	
+
 	if err != nil && isUniqueViolation(err) {
 		return fmt.Errorf("unit name '%s' already exists", u.Name)
 	}
@@ -56,7 +56,7 @@ func (r *UnitRepo) Delete(ctx context.Context, id int) error {
 // GetByID fetches a single unit
 func (r *UnitRepo) GetByID(ctx context.Context, id int) (*model.Unit, error) {
 	query := `SELECT id, name, symbol, created_at, updated_at FROM units WHERE id = $1`
-	
+
 	var u model.Unit
 	err := r.db.QueryRow(ctx, query, id).Scan(&u.ID, &u.Name, &u.Symbol, &u.CreatedAt, &u.UpdatedAt)
 	if err == pgx.ErrNoRows {
@@ -68,7 +68,7 @@ func (r *UnitRepo) GetByID(ctx context.Context, id int) (*model.Unit, error) {
 // GetAll retrieves all units
 func (r *UnitRepo) GetAll(ctx context.Context) ([]*model.Unit, error) {
 	query := `SELECT id, name, symbol, created_at, updated_at FROM units ORDER BY id ASC`
-	
+
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err

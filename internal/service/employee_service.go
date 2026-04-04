@@ -91,7 +91,7 @@ func (s *EmployeeService) Update(ctx context.Context, id int, req model.Employee
 	}
 
 	return s.GetByID(ctx, id)
-	}
+}
 
 func (s *EmployeeService) Delete(ctx context.Context, id int) error {
 	if err := s.repo.Delete(ctx, id); err != nil {

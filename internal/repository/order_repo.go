@@ -320,7 +320,7 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 			&order.PaymentMethod, &order.PaymentStatus, &order.OrderStatus,
 			&order.Subtotal, &order.ShippingCost, &order.Discount, &order.Tax, &order.Total,
 			&order.OrderNote,
-		&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
+			&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
 			&order.CancelledAt, &order.CancelledReason,
 		)
 		if err != nil {

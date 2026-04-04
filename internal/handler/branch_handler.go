@@ -31,7 +31,7 @@ func (h *BranchHandler) handleErr(w http.ResponseWriter, err error) {
 
 func (h *BranchHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var branch model.Branch
-	
+
 	// Read JSON Body
 	if err := utils.ReadJSON(w, r, &branch); err != nil {
 		utils.BadRequest(w, err)
@@ -84,19 +84,19 @@ func (h *BranchHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 func (h *BranchHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id, _ := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
-	
+
 	if err := h.svc.Delete(r.Context(), id); err != nil {
 		utils.ServerError(w, err)
 		return
 	}
-	
+
 	var response struct {
 		Error   bool   `json:"error"`
 		Message string `json:"message"`
 	}
 	response.Error = false
 	response.Message = "Branch deleted successfully"
-	
+
 	utils.WriteJSON(w, http.StatusOK, response)
 }
 
@@ -117,7 +117,7 @@ func (h *BranchHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
 		utils.NotFound(w, err)
 		return
 	}
-	
+
 	var response struct {
 		Error    bool            `json:"error"`
 		Message  string          `json:"message"`
@@ -126,6 +126,6 @@ func (h *BranchHandler) GetBranches(w http.ResponseWriter, r *http.Request) {
 	response.Error = false
 	response.Message = "Branches retrieved successfully"
 	response.Branches = branches
-	
+
 	utils.WriteJSON(w, http.StatusOK, response)
 }
