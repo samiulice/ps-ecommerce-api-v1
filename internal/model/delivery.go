@@ -18,7 +18,7 @@ type DeliveryMethod struct {
 // DeliveryMan represents an employee who delivers orders.
 type DeliveryMan struct {
 	ID                int64          `json:"id" db:"id"`
-	CustomerID        int64          `json:"customer_id" db:"customer_id"`
+	EmployeeID        int64          `json:"employee_id" db:"employee_id"`
 	IdentityType      sql.NullString `json:"identity_type,omitempty" db:"identity_type"`
 	IdentityNumber    sql.NullString `json:"identity_number,omitempty" db:"identity_number"`
 	IdentityImage     sql.NullString `json:"identity_image,omitempty" db:"identity_image"`
@@ -33,22 +33,22 @@ type DeliveryMan struct {
 	UpdatedAt         sql.NullTime   `json:"updated_at,omitempty" db:"updated_at"`
 
 	// Nested/Joined Customer profile details
-	CustomerName  sql.NullString `json:"customer_name,omitempty" db:"name"`
-	CustomerPhone sql.NullString `json:"customer_phone,omitempty" db:"phone"`
+	EmployeeName   string `json:"employee_name,omitempty" db:"name"`
+	EmployeeMobile string `json:"employee_mobile,omitempty" db:"phone"`
 }
 
 // OrderDelivery maps an order to a delivery man and tracks status.
 type OrderDelivery struct {
-	ID                   int64         `json:"id" db:"id"`
-	OrderID              int64         `json:"order_id" db:"order_id"`
-	DeliveryManID        sql.NullInt64 `json:"delivery_man_id,omitempty" db:"delivery_man_id"`
-	DeliveryStatus       string        `json:"delivery_status" db:"delivery_status"`
-	DeliveryFeeCollected float64       `json:"delivery_fee_collected" db:"delivery_fee_collected"`
-	DeliveryManEarning   float64       `json:"delivery_man_earning" db:"delivery_man_earning"`
-	AssignedAt           sql.NullTime  `json:"assigned_at,omitempty" db:"assigned_at"`
-	DeliveredAt          sql.NullTime  `json:"delivered_at,omitempty" db:"delivered_at"`
-	CreatedAt            sql.NullTime  `json:"created_at,omitempty" db:"created_at"`
-	UpdatedAt            sql.NullTime  `json:"updated_at,omitempty" db:"updated_at"`
+	ID                   int64        `json:"id" db:"id"`
+	OrderID              int64        `json:"order_id" db:"order_id"`
+	DeliveryManID        *int64       `json:"delivery_man_id,omitempty" db:"delivery_man_id"`
+	DeliveryStatus       string       `json:"delivery_status" db:"delivery_status"`
+	DeliveryFeeCollected float64      `json:"delivery_fee_collected" db:"delivery_fee_collected"`
+	DeliveryManEarning   float64      `json:"delivery_man_earning" db:"delivery_man_earning"`
+	AssignedAt           sql.NullTime `json:"assigned_at,omitempty" db:"assigned_at"`
+	DeliveredAt          sql.NullTime `json:"delivered_at,omitempty" db:"delivered_at"`
+	CreatedAt            sql.NullTime `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt            sql.NullTime `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 // DeliveryWallet stores the earnings and withdrawals.
@@ -71,4 +71,12 @@ type WithdrawRequest struct {
 	AdminNote     sql.NullString `json:"admin_note,omitempty" db:"admin_note"`
 	CreatedAt     sql.NullTime   `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt     sql.NullTime   `json:"updated_at,omitempty" db:"updated_at"`
+}
+
+type OrderDeliveryHistory struct {
+	OrderID        int64   `json:"order_id" db:"order_id"`
+	OrderCode      string  `json:"order_code" db:"order_code"`
+	OrderStatus    string  `json:"order_status" db:"order_status"`
+	OrderAmount    float64 `json:"order_amount" db:"total_amount"`
+	DeliveryStatus string  `json:"delivery_status" db:"delivery_status"`
 }

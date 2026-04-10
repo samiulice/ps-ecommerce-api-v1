@@ -115,7 +115,7 @@ func (h *AuthHandler) EmployeeRefresh(w http.ResponseWriter, r *http.Request) {
 
 // EmployeeMe handles GET /auth/admin/me (protected endpoint).
 func (h *AuthHandler) EmployeeMe(w http.ResponseWriter, r *http.Request) {
-	uid, ok := middleware.CustomerIDFromContext(r.Context())
+	uid, ok := middleware.AuthIDFromContext(r.Context())
 	if !ok {
 		utils.WriteJSON(w, http.StatusUnauthorized, map[string]any{
 			"error":   true,
@@ -239,7 +239,7 @@ func (h *AuthHandler) CustomerRefresh(w http.ResponseWriter, r *http.Request) {
 
 // CustomerMe handles GET /auth/customer/me (protected endpoint).
 func (h *AuthHandler) CustomerMe(w http.ResponseWriter, r *http.Request) {
-	uid, ok := middleware.CustomerIDFromContext(r.Context())
+	uid, ok := middleware.AuthIDFromContext(r.Context())
 	if !ok {
 		utils.WriteJSON(w, http.StatusUnauthorized, map[string]any{
 			"error":   true,

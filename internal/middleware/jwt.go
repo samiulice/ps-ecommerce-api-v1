@@ -88,8 +88,8 @@ func JWTAuth(secret string) func(http.Handler) http.Handler {
 	}
 }
 
-// CustomerIDFromContext extracts authenticated customer ID.
-func CustomerIDFromContext(ctx context.Context) (int, bool) {
+// AuthIDFromContext extracts authenticated customer ID.
+func AuthIDFromContext(ctx context.Context) (int, bool) {
 	id, ok := ctx.Value(customerIDKey).(int)
 	return id, ok
 }

@@ -31,12 +31,12 @@ func (s *DeliveryService) AddDeliveryMethod(ctx context.Context, m *model.Delive
 
 // RegisterDeliveryMan converts an existing customer into a platform rider
 func (s *DeliveryService) RegisterDeliveryMan(ctx context.Context, dm *model.DeliveryMan) error {
-	if dm.CustomerID <= 0 {
+	if dm.EmployeeID <= 0 {
 		return errors.New("valid customer ID is required to register as delivery man")
 	}
 
 	// Check if already registered
-	existing, err := s.repo.GetDeliveryManByCustomerID(ctx, dm.CustomerID)
+	existing, err := s.repo.GetDeliveryManByEmployeeID(ctx, dm.EmployeeID)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (s *DeliveryService) RegisterDeliveryMan(ctx context.Context, dm *model.Del
 
 // AssignDelivery routes an order to a delivery man.
 func (s *DeliveryService) AssignDelivery(ctx context.Context, assignment *model.OrderDelivery) error {
-	if assignment.OrderID <= 0 || !assignment.DeliveryManID.Valid {
+	if assignment.OrderID <= 0 || assignment.DeliveryManID == nil {
 		return errors.New("order ID and delivery man ID are required")
 	}
 
@@ -82,8 +82,8 @@ func (s *DeliveryService) UpdateDeliveryStatus(ctx context.Context, orderID int6
 	}
 
 	// Logic: Credit the delivery man's wallet when an order status changes to 'Delivered'
-	if newStatus == "delivered" && payload.DeliveryManID.Valid && payload.DeliveryManEarning > 0 {
-		err := s.repo.CreditWallet(ctx, payload.DeliveryManID.Int64, payload.DeliveryManEarning)
+	if newStatus == "delivered" && payload.DeliveryManID != nil && payload.DeliveryManEarning > 0 {
+		err := s.repo.CreditWallet(ctx, *payload.DeliveryManID, payload.DeliveryManEarning)
 		if err != nil {
 			// In a real production system, this should likely be in a DB Transaction
 			return errors.New("delivery successful, but failed to credit wallet: " + err.Error())
@@ -124,4 +124,31 @@ func (s *DeliveryService) GetDeliveryHistory(ctx context.Context, page, limit in
         }
         offset := (page - 1) * limit
         return s.repo.GetDeliveryHistory(ctx, limit, offset)
+}
+
+// GetPortalOrders handles logic to fetch orders assigned to a specific employee
+func (s *DeliveryService) GetPortalOrders(ctx context.Context, employeeID int64) ([]model.OrderDelivery, error) {
+// Need to check if the employee is registered as a delivery man first
+dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
+if err != nil {
+return nil, err
+}
+if dm == nil {
+return []model.OrderDelivery{}, nil // not a delivery man
+}
+
+return s.repo.GetOrdersByDeliveryMan(ctx, dm.ID)
+}
+
+// GetPortalWallet fetches the wallet for the logged-in delivery man
+func (s *DeliveryService) GetPortalWallet(ctx context.Context, employeeID int64) (*model.DeliveryWallet, error) {
+dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
+if err != nil {
+return nil, err
+}
+if dm == nil {
+return nil, nil // not a delivery man
+}
+
+return s.repo.GetWalletByDeliveryMan(ctx, dm.ID)
 }

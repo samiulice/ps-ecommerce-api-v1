@@ -80,3 +80,23 @@ CREATE TRIGGER trigger_delivery_men_updated_at BEFORE UPDATE ON delivery_men FOR
 CREATE TRIGGER trigger_order_deliveries_updated_at BEFORE UPDATE ON order_deliveries FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
 CREATE TRIGGER trigger_delivery_wallets_updated_at BEFORE UPDATE ON delivery_wallets FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
 CREATE TRIGGER trigger_withdraw_requests_updated_at BEFORE UPDATE ON withdraw_requests FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+-- Insert Delivery Module Permissions
+INSERT INTO permissions (key, display_name, module, description)
+VALUES 
+    ('delivery.manage', 'Manage Delivery Settings', 'delivery', 'Can configure delivery methods, driver onboarding, and handle approvals'),
+    ('delivery.assign', 'Assign Deliveries', 'delivery', 'Can assign orders to delivery men')
+ON CONFLICT (key) DO NOTHING;
+
+-- Insert Delivery Man Role
+INSERT INTO roles (name, slug, description, is_active)
+VALUES 
+    ('Delivery Man', 'delivery_man', 'Platform delivery rider executing orders on the road', TRUE)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Assign Delivery Permissions to Admins
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+CROSS JOIN permissions p
+WHERE r.slug IN ('chairman', 'manager') AND p.key IN ('delivery.manage', 'delivery.assign')
+ON CONFLICT DO NOTHING;
