@@ -283,14 +283,39 @@ func (h *SiteSettingsHandler) GetGeneralSettings(w http.ResponseWriter, r *http.
 }
 
 func (h *SiteSettingsHandler) UpdateGeneralSettings(w http.ResponseWriter, r *http.Request) {
-	var req model.GeneralSettings
-	if err := utils.ReadJSON(w, r, &req); err != nil {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}
 
-	if err := h.svc.UpdateGeneralSettings(r.Context(), &req); err != nil {
-		utils.BadRequest(w, err)
+	settings := &model.GeneralSettings{
+		CompanyName:       r.FormValue("company_name"),
+		CompanyEmail:      r.FormValue("company_email"),
+		CompanyPhone:      r.FormValue("company_phone"),
+		CompanyAddress:    r.FormValue("company_address"),
+		AboutUsShort:      r.FormValue("about_us_short"),
+		AboutUsLong:       r.FormValue("about_us_long"),
+		CurrencySymbol:    r.FormValue("currency_symbol"),
+		CurrencyCode:      r.FormValue("currency_code"),
+		CompanyLogo:       checkDelete(r, "company_logo"),
+		CompanyLogoMobile: checkDelete(r, "company_logo_mobile"),
+		CompanyLogoFooter: checkDelete(r, "company_logo_footer"),
+	}
+
+	filesMap := make(map[string]*multipart.FileHeader)
+	filesData := make(map[string]multipart.File)
+	keys := []string{"company_logo", "company_logo_mobile", "company_logo_footer"}
+
+	for _, key := range keys {
+		file, header, _ := r.FormFile(key)
+		if file != nil {
+			filesMap[key] = header
+			filesData[key] = file
+		}
+	}
+
+	if err := h.svc.UpdateGeneralSettings(r.Context(), settings, filesMap, filesData); err != nil {
+		h.handleErr(w, err)
 		return
 	}
 

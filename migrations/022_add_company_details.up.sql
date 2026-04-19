@@ -1,0 +1,8 @@
+ALTER TABLE general_settings
+    ADD COLUMN IF NOT EXISTS company_logo_mobile VARCHAR(255) DEFAULT '',
+    ADD COLUMN IF NOT EXISTS company_logo_footer VARCHAR(255) DEFAULT '',
+    ADD COLUMN IF NOT EXISTS company_email VARCHAR(255) DEFAULT '',
+    ADD COLUMN IF NOT EXISTS company_phone VARCHAR(50) DEFAULT '',
+    ADD COLUMN IF NOT EXISTS company_address TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS about_us_short TEXT DEFAULT '',
+    ADD COLUMN IF NOT EXISTS about_us_long TEXT DEFAULT '';

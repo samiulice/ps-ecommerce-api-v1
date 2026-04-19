@@ -257,12 +257,12 @@ func (r *SiteSettingsRepo) ListTopbarSocialLinks(ctx context.Context, limit int)
 // -------------------------
 func (r *SiteSettingsRepo) GetGeneralSettings(ctx context.Context) (*model.GeneralSettings, error) {
 	query := `
-		SELECT id, company_name, company_logo, company_address, currency_symbol, currency_code, created_at, updated_at
+		SELECT id, company_name, company_logo, company_logo_mobile, company_logo_footer, company_email, company_phone, company_address, about_us_short, about_us_long, currency_symbol, currency_code, created_at, updated_at
 		FROM general_settings WHERE id = 1
 	`
 	s := &model.GeneralSettings{}
 	err := r.db.QueryRow(ctx, query).Scan(
-		&s.ID, &s.CompanyName, &s.CompanyLogo, &s.CompanyAddress, &s.CurrencySymbol, &s.CurrencyCode, &s.CreatedAt, &s.UpdatedAt,
+		&s.ID, &s.CompanyName, &s.CompanyLogo, &s.CompanyLogoMobile, &s.CompanyLogoFooter, &s.CompanyEmail, &s.CompanyPhone, &s.CompanyAddress, &s.AboutUsShort, &s.AboutUsLong, &s.CurrencySymbol, &s.CurrencyCode, &s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -278,13 +278,19 @@ func (r *SiteSettingsRepo) UpdateGeneralSettings(ctx context.Context, s *model.G
 		UPDATE general_settings SET 
 			company_name = $1,
 			company_logo = $2,
-			company_address = $3,
-			currency_symbol = $4,
-			currency_code = $5,
+			company_logo_mobile = $3,
+			company_logo_footer = $4,
+			company_email = $5,
+			company_phone = $6,
+			company_address = $7,
+			about_us_short = $8,
+			about_us_long = $9,
+			currency_symbol = $10,
+			currency_code = $11,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = 1
 	`
-	_, err := r.db.Exec(ctx, query, s.CompanyName, s.CompanyLogo, s.CompanyAddress, s.CurrencySymbol, s.CurrencyCode)
+	_, err := r.db.Exec(ctx, query, s.CompanyName, s.CompanyLogo, s.CompanyLogoMobile, s.CompanyLogoFooter, s.CompanyEmail, s.CompanyPhone, s.CompanyAddress, s.AboutUsShort, s.AboutUsLong, s.CurrencySymbol, s.CurrencyCode)
 	if err != nil {
 		return fmt.Errorf("failed to update general settings: %w", err)
 	}

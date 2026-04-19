@@ -190,6 +190,24 @@ func GetHeroBannerURL(filename, ext string) string {
 	return strings.Join([]string{"public", "images", "hero", filename + ext}, "/")
 }
 
+// GetSettingsFolderPath constructs the full file path for settings images like logos.
+// It accepts a filename, sanitizes it, and appends it to the settings directory.
+func GetSettingsFolderPath(filename string) string {
+	basePath := filepath.Join(".", "assets", "public", "images", "settings")
+	_ = os.MkdirAll(basePath, os.ModePerm)
+	filename = sanitizeFilename(filename)
+	if filename == "" {
+		return basePath
+	}
+	return filepath.Join(basePath, filename)
+}
+
+// GetSettingsImageURL constructs the url for a settings image.
+func GetSettingsImageURL(filename, ext string) string {
+	filename = sanitizeFilename(filename)
+	return strings.Join([]string{"public", "images", "settings", filename + ext}, "/")
+}
+
 // GetPurchaseAttachmentFolderPath constructs the full file path for purchase attachments.
 // If filename is empty, it returns the directory path itself.
 func GetPurchaseAttachmentFolderPath(filename string) string {

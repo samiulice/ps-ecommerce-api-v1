@@ -258,9 +258,56 @@ func (s *SiteSettingsService) GetGeneralSettings(ctx context.Context) (*model.Ge
 	return s.repo.GetGeneralSettings(ctx)
 }
 
-func (s *SiteSettingsService) UpdateGeneralSettings(ctx context.Context, settings *model.GeneralSettings) error {
+func (s *SiteSettingsService) UpdateGeneralSettings(ctx context.Context, settings *model.GeneralSettings, filesMap map[string]*multipart.FileHeader, filesData map[string]multipart.File) error {
 	if settings.CompanyName == "" {
 		return errors.New("company name is required")
 	}
-	return s.repo.UpdateGeneralSettings(ctx, settings)
+
+	existingSettings, err := s.repo.GetGeneralSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Process files
+	processFile := func(key string, currentVal *string, existingVal string, namePrefix string) {
+		if header, hasHeader := filesMap[key]; hasHeader && header != nil {
+			ext := strings.ToLower(filepath.Ext(header.Filename))
+			*currentVal = utils.GetSettingsImageURL(namePrefix, ext)
+		} else if *currentVal == "" {
+			// user requested delete
+		} else {
+			*currentVal = existingVal // KEEP or other
+		}
+	}
+
+	processFile("company_logo", &settings.CompanyLogo, existingSettings.CompanyLogo, "main-logo")
+	processFile("company_logo_mobile", &settings.CompanyLogoMobile, existingSettings.CompanyLogoMobile, "mobile-logo")
+	processFile("company_logo_footer", &settings.CompanyLogoFooter, existingSettings.CompanyLogoFooter, "footer-logo")
+
+	err = s.repo.UpdateGeneralSettings(ctx, settings)
+	if err != nil {
+		return err
+	}
+
+	saveAndClean := func(key string, newURL string, oldURL string, namePrefix string) {
+		if file, ok := filesData[key]; ok && file != nil {
+			defer file.Close()
+			header := filesMap[key]
+
+			_, err := utils.SaveMultipartImage(file, header, utils.GetSettingsFolderPath(""), namePrefix)
+			if err == nil {
+				if oldURL != "" && oldURL != newURL {
+					utils.DeleteFile(utils.GetSettingsFolderPath(filepath.Base(oldURL)))
+				}
+			}
+		} else if newURL == "" && oldURL != "" {
+			utils.DeleteFile(utils.GetSettingsFolderPath(filepath.Base(oldURL)))
+		}
+	}
+
+	saveAndClean("company_logo", settings.CompanyLogo, existingSettings.CompanyLogo, "main-logo")
+	saveAndClean("company_logo_mobile", settings.CompanyLogoMobile, existingSettings.CompanyLogoMobile, "mobile-logo")
+	saveAndClean("company_logo_footer", settings.CompanyLogoFooter, existingSettings.CompanyLogoFooter, "footer-logo")
+
+	return nil
 }
