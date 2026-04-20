@@ -49,17 +49,30 @@ type OrderDelivery struct {
 	DeliveredAt          sql.NullTime `json:"delivered_at,omitempty" db:"delivered_at"`
 	CreatedAt            sql.NullTime `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt            sql.NullTime `json:"updated_at,omitempty" db:"updated_at"`
+
+	// Joined Order Info for Delivery Man Portal
+	OrderNumber    string  `json:"order_number,omitempty" db:"order_number"`
+	CustomerName   string  `json:"customer_name,omitempty" db:"customer_name"`
+	CustomerMobile string  `json:"customer_mobile,omitempty" db:"customer_mobile"`
+	CustomerArea   string  `json:"customer_area,omitempty" db:"customer_area"`
+	CustomerCity   string  `json:"customer_city,omitempty" db:"customer_city"`
+	OrderTotal     float64 `json:"order_total,omitempty" db:"total"`
 }
 
 // DeliveryWallet stores the earnings and withdrawals.
 type DeliveryWallet struct {
-	ID             int64        `json:"id" db:"id"`
-	DeliveryManID  int64        `json:"delivery_man_id" db:"delivery_man_id"`
-	TotalEarned    float64      `json:"total_earned" db:"total_earned"`
-	TotalWithdrawn float64      `json:"total_withdrawn" db:"total_withdrawn"`
-	CurrentBalance float64      `json:"current_balance" db:"current_balance"`
-	CreatedAt      sql.NullTime `json:"created_at,omitempty" db:"created_at"`
-	UpdatedAt      sql.NullTime `json:"updated_at,omitempty" db:"updated_at"`
+	ID                  int64        `json:"id" db:"id"`
+	DeliveryManID       int64        `json:"delivery_man_id" db:"delivery_man_id"`
+	TotalEarned         float64      `json:"total_earned" db:"total_earned"`
+	TotalWithdrawn      float64      `json:"total_withdrawn" db:"total_withdrawn"`
+	CurrentBalance      float64      `json:"current_balance" db:"current_balance"`
+	CompletedDeliveries int64        `json:"completed_deliveries,omitempty" db:"-"`
+	TotalAssigned       int64        `json:"total_assigned,omitempty" db:"-"`
+	RecentEarnings      []float64    `json:"recent_earnings" db:"-"`
+	RecentDeliveries    []int64      `json:"recent_deliveries" db:"-"`
+	RecentCancellations []int64      `json:"recent_cancellations" db:"-"`
+	CreatedAt           sql.NullTime `json:"created_at,omitempty" db:"created_at"`
+	UpdatedAt           sql.NullTime `json:"updated_at,omitempty" db:"updated_at"`
 }
 
 // WithdrawRequest tracks a delivery man's request to transfer wallet funds to bank.

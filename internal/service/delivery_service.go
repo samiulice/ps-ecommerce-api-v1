@@ -105,50 +105,60 @@ func (s *DeliveryService) RequestWithdrawal(ctx context.Context, wr *model.Withd
 	return s.repo.CreateWithdrawRequest(ctx, wr)
 }
 
-
-
 func (s *DeliveryService) ListDeliveryMen(ctx context.Context) ([]model.DeliveryMan, error) {
-        return s.repo.ListDeliveryMen(ctx)
+	return s.repo.ListDeliveryMen(ctx)
 }
 
 func (s *DeliveryService) ListDeliveryMethods(ctx context.Context) ([]model.DeliveryMethod, error) {
-        return s.repo.ListDeliveryMethods(ctx)
+	return s.repo.ListDeliveryMethods(ctx)
 }
 
 func (s *DeliveryService) GetDeliveryHistory(ctx context.Context, page, limit int) ([]repository.OrderDeliveryHistory, error) {
-        if page < 1 {
-                page = 1
-        }
-        if limit < 1 || limit > 100 {
-                limit = 20
-        }
-        offset := (page - 1) * limit
-        return s.repo.GetDeliveryHistory(ctx, limit, offset)
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+	offset := (page - 1) * limit
+	return s.repo.GetDeliveryHistory(ctx, limit, offset)
 }
 
 // GetPortalOrders handles logic to fetch orders assigned to a specific employee
 func (s *DeliveryService) GetPortalOrders(ctx context.Context, employeeID int64) ([]model.OrderDelivery, error) {
-// Need to check if the employee is registered as a delivery man first
-dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
-if err != nil {
-return nil, err
-}
-if dm == nil {
-return []model.OrderDelivery{}, nil // not a delivery man
-}
+	// Need to check if the employee is registered as a delivery man first
+	dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	if dm == nil {
+		return []model.OrderDelivery{}, nil // not a delivery man
+	}
 
-return s.repo.GetOrdersByDeliveryMan(ctx, dm.ID)
+	return s.repo.GetOrdersByDeliveryMan(ctx, dm.ID)
 }
 
 // GetPortalWallet fetches the wallet for the logged-in delivery man
 func (s *DeliveryService) GetPortalWallet(ctx context.Context, employeeID int64) (*model.DeliveryWallet, error) {
-dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
-if err != nil {
-return nil, err
-}
-if dm == nil {
-return nil, nil // not a delivery man
+	dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	if dm == nil {
+		return nil, nil // not a delivery man
+	}
+
+	return s.repo.GetWalletByDeliveryMan(ctx, dm.ID)
 }
 
-return s.repo.GetWalletByDeliveryMan(ctx, dm.ID)
+// GetPortalProfile fetches the profile for the logged-in delivery man
+func (s *DeliveryService) GetPortalProfile(ctx context.Context, employeeID int64) (*model.DeliveryMan, error) {
+	dm, err := s.repo.GetDeliveryManByEmployeeID(ctx, employeeID)
+	if err != nil {
+		return nil, err
+	}
+	if dm == nil {
+		return nil, nil // not a delivery man
+	}
+	return dm, nil
 }

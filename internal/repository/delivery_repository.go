@@ -57,6 +57,12 @@ func (r *DeliveryRepository) CreateDeliveryMan(ctx context.Context, m *model.Del
 
 // AssignOrderToDelivery assigns an order to a delivery man
 func (r *DeliveryRepository) AssignOrderToDelivery(ctx context.Context, d *model.OrderDelivery) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	query := `
 		INSERT INTO order_deliveries (
 			order_id, delivery_man_id, delivery_status,
@@ -68,27 +74,77 @@ func (r *DeliveryRepository) AssignOrderToDelivery(ctx context.Context, d *model
 			assigned_at = NOW()
 		RETURNING id, assigned_at, created_at, updated_at
 	`
-	return r.db.QueryRow(ctx, query,
+	err = tx.QueryRow(ctx, query,
 		d.OrderID, d.DeliveryManID, d.DeliveryStatus,
 		d.DeliveryFeeCollected, d.DeliveryManEarning,
 	).Scan(&d.ID, &d.AssignedAt, &d.CreatedAt, &d.UpdatedAt)
+
+	if err != nil {
+		return err
+	}
+
+	// Update the order status to shipped since a delivery man is assigned
+	orderQuery := `UPDATE orders SET order_status = 'shipped', updated_at = NOW() WHERE id = $1 AND order_status != 'delivered'`
+	_, err = tx.Exec(ctx, orderQuery, d.OrderID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
 
 // UpdateOrderDeliveryStatus updates the rider's progress for an order.
 func (r *DeliveryRepository) UpdateOrderDeliveryStatus(ctx context.Context, orderID int64, payload *model.OrderDelivery) error {
-	query := `
-		UPDATE order_deliveries
-		SET delivery_status = $1, delivered_at = CASE WHEN $1 = 'delivered' THEN NOW() ELSE delivered_at END
-		WHERE order_id = $2
-		RETURNING id, delivery_man_id, delivery_status, delivery_man_earning, delivered_at
-	`
-	return r.db.QueryRow(ctx, query, payload.DeliveryStatus, orderID).Scan(
+	var query string
+	if payload.DeliveryStatus == "delivered" {
+		query = `
+                        UPDATE order_deliveries
+                        SET delivery_status = $1, delivered_at = NOW()
+                        WHERE order_id = $2
+                        RETURNING id, delivery_man_id, delivery_status, delivery_man_earning, delivered_at
+                `
+	} else {
+		query = `
+                        UPDATE order_deliveries
+                        SET delivery_status = $1
+                        WHERE order_id = $2
+                        RETURNING id, delivery_man_id, delivery_status, delivery_man_earning, delivered_at
+                `
+	}
+	err := r.db.QueryRow(ctx, query, payload.DeliveryStatus, orderID).Scan(
 		&payload.ID, &payload.DeliveryManID, &payload.DeliveryStatus,
 		&payload.DeliveryManEarning, &payload.DeliveredAt,
 	)
-}
+	if err != nil {
+		return err
+	}
 
-// CreditWallet earns the delivery man a commision
+	// Implicitly sync the core orders table status and payment
+	if payload.DeliveryStatus == "delivered" {
+		orderQuery := `
+			UPDATE orders 
+			SET order_status = 'delivered', 
+			    delivered_at = NOW(),
+			    payment_status = CASE WHEN payment_method = 'COD' THEN 'paid'::payment_status ELSE payment_status END
+			WHERE id = $1
+		`
+		_, _ = r.db.Exec(ctx, orderQuery, orderID)
+	} else if payload.DeliveryStatus == "failed" || payload.DeliveryStatus == "cancelled" {
+		orderQuery := `
+			UPDATE orders 
+			SET order_status = 'cancelled', 
+			    cancelled_at = NOW(),
+			    cancelled_reason = 'Delivery reported as ' || $2
+			WHERE id = $1 AND order_status != 'cancelled'
+		`
+		_, _ = r.db.Exec(ctx, orderQuery, orderID, payload.DeliveryStatus)
+	} else if payload.DeliveryStatus == "out_for_delivery" {
+		orderQuery := `UPDATE orders SET order_status = 'shipped', updated_at = NOW() WHERE id = $1 AND order_status != 'delivered'`
+		_, _ = r.db.Exec(ctx, orderQuery, orderID)
+	}
+
+	return nil
+}
 func (r *DeliveryRepository) CreditWallet(ctx context.Context, deliveryManID int64, amount float64) error {
 	query := `
 		UPDATE delivery_wallets 
@@ -114,7 +170,9 @@ func (r *DeliveryRepository) CreateWithdrawRequest(ctx context.Context, wr *mode
 func (r *DeliveryRepository) GetDeliveryManByEmployeeID(ctx context.Context, customerID int64) (*model.DeliveryMan, error) {
 	query := `
 		SELECT d.id, d.employee_id, d.is_active, d.is_online, d.created_at,
-		       COALESCE(e.name, ''), COALESCE(e.mobile, '')
+		       COALESCE(e.name, ''), COALESCE(e.mobile, ''),
+		       d.identity_type, d.identity_number, d.identity_image, d.vehicle_type, d.vehicle_number,
+		       d.bank_name, d.account_no, d.account_holder_name
 		FROM delivery_men d
 		JOIN employees e ON e.id = d.employee_id
 		WHERE d.employee_id = $1 LIMIT 1
@@ -123,6 +181,8 @@ func (r *DeliveryRepository) GetDeliveryManByEmployeeID(ctx context.Context, cus
 	err := r.db.QueryRow(ctx, query, customerID).Scan(
 		&m.ID, &m.EmployeeID, &m.IsActive, &m.IsOnline, &m.CreatedAt,
 		&m.EmployeeName, &m.EmployeeMobile,
+		&m.IdentityType, &m.IdentityNumber, &m.IdentityImage, &m.VehicleType, &m.VehicleNumber,
+		&m.BankName, &m.AccountNo, &m.AccountHolderName,
 	)
 	if err == pgx.ErrNoRows {
 		return nil, nil // Return clear nil on not found
@@ -185,7 +245,7 @@ func (r *DeliveryRepository) GetDeliveryHistory(ctx context.Context, limit, offs
                         od.delivery_fee_collected, od.delivery_man_earning, od.assigned_at, od.delivered_at, od.created_at, od.updated_at
                 FROM order_deliveries od
                 LEFT JOIN delivery_men dm ON od.delivery_man_id = dm.id
-                LEFT JOIN employees e ON dm.employee_id = c.id
+                LEFT JOIN employees e ON dm.employee_id = e.id
                 ORDER BY od.created_at DESC
                 LIMIT $1 OFFSET $2
         `
@@ -195,7 +255,7 @@ func (r *DeliveryRepository) GetDeliveryHistory(ctx context.Context, limit, offs
 	}
 	defer rows.Close()
 
-	var history []OrderDeliveryHistory
+	history := make([]OrderDeliveryHistory, 0)
 	for rows.Next() {
 		var d OrderDeliveryHistory
 		if err := rows.Scan(&d.ID, &d.OrderID, &d.DeliveryManID, &d.DeliveryManName, &d.DeliveryManPhone, &d.DeliveryStatus,
@@ -226,38 +286,110 @@ func (r *DeliveryRepository) ListDeliveryMethods(ctx context.Context) ([]model.D
 	return methods, nil
 }
 
-
-
 func (r *DeliveryRepository) GetOrdersByDeliveryMan(ctx context.Context, dmID int64) ([]model.OrderDelivery, error) {
-query := `
-SELECT id, order_id, delivery_man_id, delivery_status, delivery_fee_collected, delivery_man_earning, assigned_at, delivered_at
-FROM order_deliveries
-WHERE delivery_man_id = $1
-ORDER BY assigned_at DESC
+	query := `
+SELECT 
+    od.id, od.order_id, od.delivery_man_id, od.delivery_status, 
+    od.delivery_fee_collected, od.delivery_man_earning, od.assigned_at, od.delivered_at,
+    o.order_number, o.customer_name, o.customer_mobile, 
+    COALESCE(o.customer_area, ''), COALESCE(o.customer_city, ''), o.total
+FROM order_deliveries od
+LEFT JOIN orders o ON od.order_id = o.id
+WHERE od.delivery_man_id = $1
+ORDER BY od.assigned_at DESC
 `
-rows, err := r.db.Query(ctx, query, dmID)
-if err != nil {
-return nil, err
-}
-defer rows.Close()
+	rows, err := r.db.Query(ctx, query, dmID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-var history []model.OrderDelivery
-for rows.Next() {
-var h model.OrderDelivery
-if err := rows.Scan(&h.ID, &h.OrderID, &h.DeliveryManID, &h.DeliveryStatus, &h.DeliveryFeeCollected, &h.DeliveryManEarning, &h.AssignedAt, &h.DeliveredAt); err != nil {
-return nil, err
-}
-history = append(history, h)
-}
-return history, nil
+	history := make([]model.OrderDelivery, 0)
+	for rows.Next() {
+		var h model.OrderDelivery
+		if err := rows.Scan(
+			&h.ID, &h.OrderID, &h.DeliveryManID, &h.DeliveryStatus,
+			&h.DeliveryFeeCollected, &h.DeliveryManEarning, &h.AssignedAt, &h.DeliveredAt,
+			&h.OrderNumber, &h.CustomerName, &h.CustomerMobile,
+			&h.CustomerArea, &h.CustomerCity, &h.OrderTotal,
+		); err != nil {
+			return nil, err
+		}
+		history = append(history, h)
+	}
+	return history, nil
 }
 
 func (r *DeliveryRepository) GetWalletByDeliveryMan(ctx context.Context, dmID int64) (*model.DeliveryWallet, error) {
-query := `SELECT id, delivery_man_id, total_earned, total_withdrawn, current_balance FROM delivery_wallets WHERE delivery_man_id = $1 LIMIT 1`
-var w model.DeliveryWallet
-err := r.db.QueryRow(ctx, query, dmID).Scan(&w.ID, &w.DeliveryManID, &w.TotalEarned, &w.TotalWithdrawn, &w.CurrentBalance)
-if err != nil {
-return &model.DeliveryWallet{DeliveryManID: dmID, TotalEarned: 0, TotalWithdrawn: 0, CurrentBalance: 0}, nil
-}
-return &w, err
+	query := `SELECT id, delivery_man_id, total_earned, total_withdrawn, current_balance FROM delivery_wallets WHERE delivery_man_id = $1 LIMIT 1`
+	var w model.DeliveryWallet
+	err := r.db.QueryRow(ctx, query, dmID).Scan(&w.ID, &w.DeliveryManID, &w.TotalEarned, &w.TotalWithdrawn, &w.CurrentBalance)
+	if err != nil {
+		w = model.DeliveryWallet{DeliveryManID: dmID, TotalEarned: 0, TotalWithdrawn: 0, CurrentBalance: 0, CompletedDeliveries: 0}
+	}
+
+	// Fetch completed deliveries count
+	countQuery := `SELECT COUNT(*) FROM order_deliveries WHERE delivery_man_id = $1 AND delivery_status = 'delivered'`
+	var count int64
+	_ = r.db.QueryRow(ctx, countQuery, dmID).Scan(&count)
+	w.CompletedDeliveries = count
+	var assignedCount int64
+	_ = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM order_deliveries WHERE delivery_man_id = $1`, dmID).Scan(&assignedCount)
+	w.TotalAssigned = assignedCount
+
+	// Get earnings for the last 15 days (grouped by absolute day, using arbitrary sum)
+	// Example query to fill the curve backwards from today
+	earningsQuery := `
+		SELECT COALESCE(SUM(delivery_man_earning), 0)
+		FROM (
+			SELECT CURRENT_DATE - generate_series(0, 14) AS d
+		) dates
+		LEFT JOIN order_deliveries od 
+			ON od.delivery_man_id = $1 
+			AND od.delivery_status = 'delivered'
+			AND DATE(od.delivered_at) = dates.d
+		GROUP BY dates.d
+		ORDER BY dates.d ASC
+	`
+	rows, err := r.db.Query(ctx, earningsQuery, dmID)
+	w.RecentEarnings = make([]float64, 0, 15)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var e float64
+			if err := rows.Scan(&e); err == nil {
+				w.RecentEarnings = append(w.RecentEarnings, e)
+			}
+		}
+	}
+
+	// Fetch delivery counts and cancellation counts per day
+	countsQuery := `
+		SELECT 
+			COALESCE(SUM(CASE WHEN od.delivery_status = 'delivered' THEN 1 ELSE 0 END), 0) as delivered_cnt,
+			COALESCE(SUM(CASE WHEN od.delivery_status = 'cancelled' OR od.delivery_status = 'failed' THEN 1 ELSE 0 END), 0) as cancelled_cnt
+		FROM (
+			SELECT CURRENT_DATE - generate_series(0, 14) AS d
+		) dates
+		LEFT JOIN order_deliveries od 
+			ON od.delivery_man_id = $1 
+			AND (DATE(od.delivered_at) = dates.d OR DATE(od.updated_at) = dates.d)
+		GROUP BY dates.d
+		ORDER BY dates.d ASC
+	`
+	rows2, err := r.db.Query(ctx, countsQuery, dmID)
+	w.RecentDeliveries = make([]int64, 0, 15)
+	w.RecentCancellations = make([]int64, 0, 15)
+	if err == nil {
+		defer rows2.Close()
+		for rows2.Next() {
+			var dCnt, cCnt int64
+			if err := rows2.Scan(&dCnt, &cCnt); err == nil {
+				w.RecentDeliveries = append(w.RecentDeliveries, dCnt)
+				w.RecentCancellations = append(w.RecentCancellations, cCnt)
+			}
+		}
+	}
+
+	return &w, nil
 }

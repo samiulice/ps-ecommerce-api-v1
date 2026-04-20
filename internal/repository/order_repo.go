@@ -229,39 +229,39 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 
 	// Build WHERE conditions
 	if filter.Status != "" {
-		conditions = append(conditions, fmt.Sprintf("order_status = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.order_status = $%d", argIndex))
 		args = append(args, filter.Status)
 		argIndex++
 	}
 	if filter.PaymentStatus != "" {
-		conditions = append(conditions, fmt.Sprintf("payment_status = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.payment_status = $%d", argIndex))
 		args = append(args, filter.PaymentStatus)
 		argIndex++
 	}
 	if filter.PaymentMethod != "" {
-		conditions = append(conditions, fmt.Sprintf("payment_method = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.payment_method = $%d", argIndex))
 		args = append(args, filter.PaymentMethod)
 		argIndex++
 	}
 	if filter.CustomerID > 0 {
-		conditions = append(conditions, fmt.Sprintf("customer_id = $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.customer_id = $%d", argIndex))
 		args = append(args, filter.CustomerID)
 		argIndex++
 	}
 	if filter.FromDate != "" {
-		conditions = append(conditions, fmt.Sprintf("created_at >= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.created_at >= $%d", argIndex))
 		args = append(args, filter.FromDate)
 		argIndex++
 	}
 	if filter.ToDate != "" {
-		conditions = append(conditions, fmt.Sprintf("created_at <= $%d", argIndex))
+		conditions = append(conditions, fmt.Sprintf("o.created_at <= $%d", argIndex))
 		args = append(args, filter.ToDate+" 23:59:59")
 		argIndex++
 	}
 	if filter.Search != "" {
 		searchPattern := "%" + filter.Search + "%"
 		conditions = append(conditions, fmt.Sprintf(
-			"(order_number ILIKE $%d OR customer_name ILIKE $%d OR customer_mobile ILIKE $%d)",
+			"(o.order_number ILIKE $%d OR o.customer_name ILIKE $%d OR o.customer_mobile ILIKE $%d)",
 			argIndex, argIndex, argIndex,
 		))
 		args = append(args, searchPattern)
@@ -274,7 +274,7 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 	}
 
 	// Count total
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM orders %s", whereClause)
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM orders o %s", whereClause)
 	var total int64
 	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
@@ -293,13 +293,17 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 
 	// Query orders
 	query := fmt.Sprintf(`
-		SELECT id, order_number, customer_id, customer_name, customer_mobile, customer_email,
-			customer_area, customer_city, payment_method, payment_status, order_status,
-			subtotal, shipping_cost, discount, tax, total, order_note, sale_type,
-			created_at, updated_at, delivered_at, cancelled_at, cancelled_reason
-		FROM orders
+		SELECT o.id, o.order_number, o.customer_id, o.customer_name, o.customer_mobile, o.customer_email,
+			o.customer_area, o.customer_city, o.payment_method, o.payment_status, o.order_status,
+			o.subtotal, o.shipping_cost, o.discount, o.tax, o.total, o.order_note, o.sale_type,
+			o.created_at, o.updated_at, o.delivered_at, o.cancelled_at, o.cancelled_reason,
+			e.name as delivery_man_name
+		FROM orders o
+		LEFT JOIN order_deliveries od ON o.id = od.order_id
+		LEFT JOIN delivery_men dm ON od.delivery_man_id = dm.id
+		LEFT JOIN employees e ON dm.employee_id = e.id
 		%s
-		ORDER BY created_at DESC, order_number DESC
+		ORDER BY o.created_at DESC, o.order_number DESC
 		LIMIT $%d OFFSET $%d
 	`, whereClause, argIndex, argIndex+1)
 
@@ -321,7 +325,7 @@ func (r *OrderRepo) List(ctx context.Context, filter model.OrderFilter) ([]model
 			&order.Subtotal, &order.ShippingCost, &order.Discount, &order.Tax, &order.Total,
 			&order.OrderNote,
 			&order.SaleType, &order.CreatedAt, &order.UpdatedAt, &order.DeliveredAt,
-			&order.CancelledAt, &order.CancelledReason,
+			&order.CancelledAt, &order.CancelledReason, &order.DeliveryManName,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan order: %w", err)

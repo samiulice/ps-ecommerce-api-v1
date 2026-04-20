@@ -35,10 +35,12 @@ func deliveryRoutes(h *handler.DeliveryHandler, secretKey string) *chi.Mux {
 	r.Group(func(r chi.Router) {
 		// Update status as being delivered
 		r.Put("/portal/orders/{id}/status", h.UpdateDeliveryStatus)
- 	// Get assigned orders
+		// Get assigned orders
 		r.Get("/portal/orders", h.GetPortalOrders)
 		// Get portal wallet
 		r.Get("/portal/wallet", h.GetPortalWallet)
+		// Get portal profile
+		r.Get("/portal/profile", h.GetPortalProfile)
 
 		// Request withdrawal
 		r.Post("/portal/withdraw", h.RequestWithdrawal)

@@ -30,6 +30,7 @@ type Order struct {
 	DeliveredAt     sql.NullTime   `json:"delivered_at"`
 	CancelledAt     sql.NullTime   `json:"cancelled_at"`
 	CancelledReason sql.NullString `json:"cancelled_reason"`
+	DeliveryManName sql.NullString `json:"delivery_man_name"`
 }
 
 // OrderItem represents a line item in an order
@@ -130,6 +131,7 @@ type OrderResponse struct {
 	DeliveredAt     *time.Time          `json:"delivered_at,omitempty"`
 	CancelledAt     *time.Time          `json:"cancelled_at,omitempty"`
 	CancelledReason *string             `json:"cancelled_reason,omitempty"`
+	DeliveryManName *string             `json:"delivery_man_name,omitempty"`
 }
 
 // OrderFilter for listing orders with filters
@@ -202,6 +204,9 @@ func (o *Order) ToOrderResponse() OrderResponse {
 	}
 	if o.CancelledReason.Valid {
 		resp.CancelledReason = &o.CancelledReason.String
+	}
+	if o.DeliveryManName.Valid {
+		resp.DeliveryManName = &o.DeliveryManName.String
 	}
 
 	return resp
