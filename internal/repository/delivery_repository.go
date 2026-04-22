@@ -145,14 +145,42 @@ func (r *DeliveryRepository) UpdateOrderDeliveryStatus(ctx context.Context, orde
 
 	return nil
 }
-func (r *DeliveryRepository) CreditWallet(ctx context.Context, deliveryManID int64, amount float64) error {
-	query := `
+func (r *DeliveryRepository) CreditWalletAndRecordExpense(ctx context.Context, deliveryManID int64, orderID int64, amount float64) error {
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Credit the Delivery Man's Wallet
+	walletQuery := `
 		UPDATE delivery_wallets 
 		SET total_earned = total_earned + $1, current_balance = current_balance + $1 
 		WHERE delivery_man_id = $2
 	`
-	_, err := r.db.Exec(ctx, query, amount, deliveryManID)
-	return err
+	_, err = tx.Exec(ctx, walletQuery, amount, deliveryManID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Record the Company Expense
+	// TODO: Create an actual 'expenses' table and insert it here.
+	// For now we leave this as a SQL comment so the structure is ready when the table exists.
+	/*
+		expenseQuery := `
+			INSERT INTO company_expenses (
+				expense_type, amount, related_order_id, description, created_at
+			) VALUES (
+				'delivery_rider_fee', $1, $2, 'Rider fee for delivered order', NOW()
+			)
+		`
+		_, err = tx.Exec(ctx, expenseQuery, amount, orderID)
+		if err != nil {
+			return err
+		}
+	*/
+
+	return tx.Commit(ctx)
 }
 
 // CreateWithdrawRequest requests a cashout to bank

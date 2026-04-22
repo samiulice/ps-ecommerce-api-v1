@@ -49,6 +49,7 @@ func Routes(cfg *config.Config, rdb *redis.Client, handlers *handler.HandlerRepo
 		r.Mount("/attributes", AttributeRoutes(handlers.AttributeHandler, cfg.JWT.Access.SecretKey))
 		r.Mount("/pos", posRoutes(handlers.POSHandler, cfg.JWT.Access.SecretKey))
 		r.Mount("/reports", reportRoutes(handlers.ReportHandler, cfg.JWT.Access.SecretKey))
+		r.Mount("/expenses", expenseRoutes(handlers.ExpenseHandler, cfg.JWT.Access.SecretKey))
 	})
 
 	return mux

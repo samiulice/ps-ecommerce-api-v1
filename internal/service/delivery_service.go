@@ -53,6 +53,10 @@ func (s *DeliveryService) AssignDelivery(ctx context.Context, assignment *model.
 		return errors.New("order ID and delivery man ID are required")
 	}
 
+	if assignment.DeliveryManEarning < 0 {
+		return errors.New("delivery man earning cannot be negative")
+	}
+
 	assignment.DeliveryStatus = "assigned"
 	return s.repo.AssignOrderToDelivery(ctx, assignment)
 }
@@ -83,10 +87,9 @@ func (s *DeliveryService) UpdateDeliveryStatus(ctx context.Context, orderID int6
 
 	// Logic: Credit the delivery man's wallet when an order status changes to 'Delivered'
 	if newStatus == "delivered" && payload.DeliveryManID != nil && payload.DeliveryManEarning > 0 {
-		err := s.repo.CreditWallet(ctx, *payload.DeliveryManID, payload.DeliveryManEarning)
+		err := s.repo.CreditWalletAndRecordExpense(ctx, *payload.DeliveryManID, orderID, payload.DeliveryManEarning)
 		if err != nil {
-			// In a real production system, this should likely be in a DB Transaction
-			return errors.New("delivery successful, but failed to credit wallet: " + err.Error())
+			return errors.New("delivery successful, but failed to credit wallet or record expense: " + err.Error())
 		}
 	}
 
