@@ -347,3 +347,52 @@ LIMIT $%d OFFSET $%d
 
 	return &resp, nil
 }
+
+func (r *ReportRepo) GetFinancialReport(ctx context.Context, filter model.ReportFilter) (*model.FinancialReportResponse, error) {
+	var resp model.FinancialReportResponse
+
+	offset := (filter.Page - 1) * filter.Limit
+	var args []interface{}
+
+	countQuery := `SELECT COUNT(*) FROM view_daily_financial_report`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&resp.TotalHits)
+	if err != nil {
+		return nil, err
+	}
+
+	// Always date desc 
+	query := `
+SELECT transaction_date, total_sales_income, total_sales_refunds, total_purchases, total_expenses, net_profit 
+FROM view_daily_financial_report
+ORDER BY transaction_date DESC
+LIMIT $1 OFFSET $2
+`
+	args = append(args, filter.Limit, offset)
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item model.FinancialReportItem
+		err := rows.Scan(
+			&item.TransactionDate,
+			&item.TotalSalesIncome,
+			&item.TotalSalesRefunds,
+			&item.TotalPurchases,
+			&item.TotalExpenses,
+			&item.NetProfit,
+		)
+		if err != nil {
+			return nil, err
+		}
+		resp.Data = append(resp.Data, item)
+	}
+
+	if resp.Data == nil {
+		resp.Data = []model.FinancialReportItem{}
+	}
+
+	return &resp, nil
+}

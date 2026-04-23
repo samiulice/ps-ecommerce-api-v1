@@ -64,3 +64,13 @@ func (s *ReportService) GetLowStockReport(ctx context.Context, filter model.Repo
 	}
 	return s.reportRepo.GetLowStockReport(ctx, filter)
 }
+
+func (s *ReportService) GetFinancialReport(ctx context.Context, filter model.ReportFilter) (*model.FinancialReportResponse, error) {
+	if filter.Page < 1 {
+		filter.Page = 1
+	}
+	if filter.Limit < 1 {
+		filter.Limit = 20
+	}
+	return s.reportRepo.GetFinancialReport(ctx, filter)
+}

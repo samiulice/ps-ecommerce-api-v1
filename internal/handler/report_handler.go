@@ -89,3 +89,13 @@ func (h *ReportHandler) GetLowStockReport(w http.ResponseWriter, r *http.Request
 	}
 	utils.WriteJSON(w, http.StatusOK, resp)
 }
+
+func (h *ReportHandler) GetFinancialReport(w http.ResponseWriter, r *http.Request) {
+	filter := parseReportFilter(r)
+	resp, err := h.reportService.GetFinancialReport(r.Context(), filter)
+	if err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, resp)
+}
