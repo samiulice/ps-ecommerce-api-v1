@@ -1,14 +1,33 @@
 #!/bin/bash
 
 # -----------------------------
-# Configuration
+# Configuration (Defaults)
 # -----------------------------
-VPS_HOST="203.161.48.179"
-REMOTE_PATH="/home/samiul/apps/bin/noor-api"
-SERVICE_NAME="noorapi.service"
-PING_URL="https://noor-api.pssoft.xyz/api/v1/ping"
-REMOTE_SCRIPT_PATH="/home/samiul/apps/bin/update-and-reload.sh"
-BINARY_PATH="./bin/app"
+DEFAULT_VPS_HOST="203.161.48.179"
+DEFAULT_REMOTE_PATH="/home/samiul/apps/bin/pse-api"
+DEFAULT_SERVICE_NAME="pseapi.service"
+DEFAULT_PING_URL="https://pse-api.pssoft.xyz/api/v1/ping"
+DEFAULT_REMOTE_SCRIPT_PATH="/home/samiul/apps/bin/update-and-reload.sh"
+DEFAULT_BINARY_PATH="./bin/app"
+
+# Helper function for user input
+get_input() {
+    local prompt=$1
+    local default_val=$2
+    local user_val
+    
+    read -p "$prompt [$default_val]: " user_val
+    echo "${user_val:-$default_val}"
+}
+
+echo "--- Deployment Configuration ---"
+VPS_HOST=$(get_input "VPS Host" "$DEFAULT_VPS_HOST")
+REMOTE_PATH=$(get_input "Remote Path" "$DEFAULT_REMOTE_PATH")
+SERVICE_NAME=$(get_input "Service Name" "$DEFAULT_SERVICE_NAME")
+PING_URL=$(get_input "Ping URL" "$DEFAULT_PING_URL")
+REMOTE_SCRIPT_PATH=$(get_input "Remote Script Path" "$DEFAULT_REMOTE_SCRIPT_PATH")
+BINARY_PATH=$(get_input "Local Binary Path" "$DEFAULT_BINARY_PATH")
+echo "--------------------------------"
 
 # -----------------------------
 # Step 1: Proficient Change Detection
@@ -21,8 +40,6 @@ if [[ ! -f "$BINARY_PATH" ]]; then
     SHOULD_BUILD=true
 else
     # 1. Check for 'Dirty' files (Modified, Staged, or Untracked)
-    # We ignore the 'bin/' directory and documentation files using grep -v
-    # The --porcelain flag ensures the output is stable for scripts
     CHANGES=$(git status --porcelain | grep -vE ' bin/|\.md$|docs/|^\?\? \.env' | wc -l)
 
     if [[ "$CHANGES" -gt 0 ]]; then
@@ -30,7 +47,6 @@ else
         SHOULD_BUILD=true
     else
         # 2. Workspace is clean, but is the binary older than the last commit?
-        # This handles cases where you just pulled changes but haven't built them yet.
         LAST_COMMIT_DATE=$(git log -1 --format=%ct)
         BINARY_MOD_DATE=$(stat -c %Y "$BINARY_PATH" 2>/dev/null || stat -f %m "$BINARY_PATH")
 
