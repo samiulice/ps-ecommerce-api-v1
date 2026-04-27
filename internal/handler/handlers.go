@@ -17,6 +17,7 @@ type HandlerRepository struct {
 	OrderHandler        *OrderHandler
 	SiteSettingsHandler *SiteSettingsHandler
 	BranchHandler       *BranchHandler
+	DashboardHandler *DashboardHandler
 	UnitHandler         *UnitHandler
 	AttributeHandler    *AttributeHandler
 	POSHandler          *POSHandler
@@ -39,6 +40,7 @@ func NewHandlerRepository(svc *service.ServiceRepository) *HandlerRepository {
 		OrderHandler:        NewOrderHandler(svc.OrderService),
 		SiteSettingsHandler: NewSiteSettingsHandler(svc.SiteSettingsService),
 		BranchHandler:       NewBranchHandler(svc.BranchService),
+		DashboardHandler: NewDashboardHandler(svc.DashboardService),
 		UnitHandler:         NewUnitHandler(svc.UnitService),
 		AttributeHandler:    NewAttributeHandler(svc.AttributeService),
 		POSHandler:          NewPOSHandler(svc.POSService),

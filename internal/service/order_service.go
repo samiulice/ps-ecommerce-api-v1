@@ -122,6 +122,9 @@ func (s *OrderService) validateOrderRequest(req model.CreateOrderRequest) error 
 	if req.Customer.Mobile == "" {
 		return errors.New("customer mobile is required")
 	}
+	if len(req.Customer.Mobile) > 20 {
+		return errors.New("customer mobile length cannot exceed 20 characters")
+	}
 	if len(req.Items) == 0 {
 		return errors.New("order must have at least one item")
 	}

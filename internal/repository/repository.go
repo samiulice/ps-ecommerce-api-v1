@@ -19,6 +19,7 @@ type DBRepository struct {
 	OrderRepo            *OrderRepo
 	SiteSettingsRepo     *SiteSettingsRepo
 	BranchRepo           *BranchRepo
+	DashboardRepo        *DashboardRepository
 	UnitRepo             *UnitRepo
 	AttributeRepo        *AttributeRepo
 	POSRepo              *POSRepo
@@ -42,6 +43,7 @@ func NewDBRepository(db *pgxpool.Pool, rdb *redis.Client) *DBRepository {
 		OrderRepo:            NewOrderRepo(db),
 		SiteSettingsRepo:     NewSiteSettingsRepo(db),
 		BranchRepo:           NewBranchRepo(db),
+		DashboardRepo:        NewDashboardRepository(db),
 		UnitRepo:             NewUnitRepo(db),
 		AttributeRepo:        NewAttributeRepo(db),
 		POSRepo:              NewPOSRepo(db),

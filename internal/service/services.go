@@ -20,6 +20,7 @@ type ServiceRepository struct {
 	OrderService        *OrderService
 	SiteSettingsService *SiteSettingsService
 	BranchService       *BranchService
+	DashboardService *DashboardService
 	UnitService         *UnitService
 	AttributeService    *AttributeService
 	POSService          *POSService
@@ -43,6 +44,7 @@ func NewServiceRepository(dbrepo *repository.DBRepository, rdb *redis.Client, co
 		OrderService:        NewOrderService(dbrepo.OrderRepo, dbrepo.CustomerRepository),
 		SiteSettingsService: NewSiteSettingsService(dbrepo.SiteSettingsRepo),
 		BranchService:       NewBranchService(dbrepo.BranchRepo),
+		DashboardService: NewDashboardService(dbrepo.DashboardRepo),
 		UnitService:         NewUnitService(dbrepo.UnitRepo),
 		AttributeService:    NewAttributeService(dbrepo.AttributeRepo),
 		POSService:          NewPOSService(dbrepo.POSRepo),
