@@ -82,8 +82,25 @@ type LowStockReportResponse struct {
 	Data      []LowStockReportItem `json:"data"`
 }
 
+// Financial Report
+
+type FinancialReportItem struct {
+	TransactionDate   time.Time `json:"transaction_date" db:"transaction_date"`
+	TotalSalesIncome  float64   `json:"total_sales_income" db:"total_sales_income"`
+	TotalSalesRefunds float64   `json:"total_sales_refunds" db:"total_sales_refunds"`
+	TotalPurchases    float64   `json:"total_purchases" db:"total_purchases"`
+	TotalExpenses     float64   `json:"total_expenses" db:"total_expenses"`
+	NetProfit         float64   `json:"net_profit" db:"net_profit"`
+}
+
+type FinancialReportResponse struct {
+	TotalHits int                   `json:"total_hits"`
+	Data      []FinancialReportItem `json:"data"`
+}
+
 type ReportFilter struct {
 	SaleType string // 'retail', 'wholesale', ''
+
 	OrderBy  string // 'price_asc', 'price_desc', 'date_desc'
 	Search   string
 	Page     int
