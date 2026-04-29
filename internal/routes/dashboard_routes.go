@@ -1,5 +1,4 @@
 package routes
-
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/projuktisheba/pse-api-v1/internal/handler"
@@ -8,7 +7,14 @@ import (
 
 func dashboardRoutes(h *handler.DashboardHandler, secretKey string) *chi.Mux {
 	mux := chi.NewRouter()
-	mux.With(employeeAuth(secretKey), middleware.RequireEmployee,).Get("/stats", h.GetDashboardStats)
+	mux.Use(employeeAuth(secretKey), middleware.RequireEmployee)
+
+	mux.Get("/stats/cards", h.GetStatsCards)
+	mux.Get("/stats/charts/sales", h.GetSaleComparison)
+	mux.Get("/stats/charts/expenses", h.GetExpenseGraph)
+	mux.Get("/stats/charts/profit", h.GetNetProfitGraph)
+	mux.Get("/stats/products/popular", h.GetPopularProducts)
+	mux.Get("/stats/products/low-stock", h.GetLowStockProducts)
 
 	return mux
 }

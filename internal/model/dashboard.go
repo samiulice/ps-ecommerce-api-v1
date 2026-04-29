@@ -1,24 +1,36 @@
 package model
 
-type ChartData struct {
-    Label string  `json:"label"`
-    Value float64 `json:"value"`
-}
-type DashboardStats struct {
-	TotalRevenue    float64            `json:"total_revenue"`
-	TotalExpenses   float64            `json:"total_expenses"`
-	NetProfit       float64            `json:"net_profit"`
-	TotalOrders     int                `json:"total_orders"`     // Online
-	TotalPOSSales   int                `json:"total_pos_sales"` // In-store
-	NewCustomers    int                `json:"new_customers"`
-	LowStockAlerts  int                `json:"low_stock_alerts"`
-	FinancialChart  []FinancialChartData `json:"financial_chart"`
-	TopProducts     []ChartData        `json:"top_products"`
+// StatsCards for the high-level dashboard metrics
+type StatsCards struct {
+	TotalOrders      int     `json:"total_orders"`
+	TotalPOSSales    int     `json:"total_pos_sales"`
+	TotalCustomers   int     `json:"total_customers"`
+	TotalPurchases   float64 `json:"total_purchases"`
+	TotalExpenses    float64 `json:"total_expenses"`
+	NetProfit        float64 `json:"net_profit"`
+	TotalProducts    int     `json:"total_products"`
+	LowStockProducts int     `json:"low_stock_products"`
 }
 
-type FinancialChartData struct {
-	Label    string  `json:"label"`
-	Revenue  float64 `json:"revenue"`
-	Expenses float64 `json:"expenses"`
-	Profit   float64 `json:"profit"`
+// ChartPoint generic structure for time-series data
+type ChartPoint struct {
+	Label string  `json:"label"`
+	Value float64 `json:"value"`
+}
+
+// SaleComparisonData for the Bar Chart (POS vs Online and Sales vs Purchases)
+type SaleComparisonData struct {
+	Label       string  `json:"label"`
+	POSSales    float64 `json:"pos_sales"`
+	OnlineSales float64 `json:"online_sales"`
+	Purchases   float64 `json:"purchases"`
+}
+
+// ProductSummary for popular and low stock lists
+type ProductSummary struct {
+	ID           int64   `json:"id"`
+	Name         string  `json:"name"`
+	CurrentStock float64 `json:"current_stock"`
+	AlertStock   float64 `json:"alert_stock"`
+	TotalSold    float64 `json:"total_sold,omitempty"`
 }
