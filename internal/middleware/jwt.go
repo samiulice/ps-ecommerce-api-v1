@@ -16,6 +16,7 @@ const (
 	customerTypeKey ctxKey = "customerType"
 	roleKey         ctxKey = "role"
 	roleIDKey       ctxKey = "roleID"
+	branchIDKey     ctxKey = "branchID"
 	permissionsKey  ctxKey = "permissions"
 )
 
@@ -72,6 +73,9 @@ func JWTAuth(secret string) func(http.Handler) http.Handler {
 			if roleID, ok := claims["role_id"].(float64); ok {
 				ctx = context.WithValue(ctx, roleIDKey, int64(roleID))
 			}
+			if branchID, ok := claims["branch_id"].(float64); ok {
+				ctx = context.WithValue(ctx, branchIDKey, int64(branchID))
+			}
 
 			if rawPermissions, ok := claims["permissions"].([]interface{}); ok {
 				permissions := make([]string, 0, len(rawPermissions))
@@ -109,6 +113,11 @@ func RoleFromContext(ctx context.Context) (string, bool) {
 func RoleIDFromContext(ctx context.Context) (int64, bool) {
 	roleID, ok := ctx.Value(roleIDKey).(int64)
 	return roleID, ok
+}
+
+func BranchIDFromContext(ctx context.Context) (int64, bool) {
+	branchId, ok := ctx.Value(branchIDKey).(int64)
+	return branchId, ok
 }
 
 func PermissionsFromContext(ctx context.Context) ([]string, bool) {

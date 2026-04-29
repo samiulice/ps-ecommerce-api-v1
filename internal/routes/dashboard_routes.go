@@ -11,8 +11,8 @@ func dashboardRoutes(h *handler.DashboardHandler, secretKey string) *chi.Mux {
 
 	mux.Get("/stats/cards", h.GetStatsCards)
 	mux.Get("/stats/charts/sales", h.GetSaleComparison)
-	mux.Get("/stats/charts/expenses", h.GetExpenseGraph)
-	mux.Get("/stats/charts/profit", h.GetNetProfitGraph)
+	mux.Get("/stats/charts/expenses", h.GetOperationalExpenseGraph)
+	mux.Get("/stats/charts/profit", h.GetNetCashFlowGraph)
 	mux.Get("/stats/products/popular", h.GetPopularProducts)
 	mux.Get("/stats/products/low-stock", h.GetLowStockProducts)
 

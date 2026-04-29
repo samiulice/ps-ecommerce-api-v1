@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 )
@@ -18,7 +20,21 @@ func NewExpenseRepository(db *pgxpool.Pool) *ExpenseRepository {
 // category
 func (r *ExpenseRepository) CreateCategory(ctx context.Context, c *model.ExpenseCategory) error {
 	query := `INSERT INTO expense_categories (name, branch_id) VALUES ($1, $2) RETURNING id, total_amount, created_at`
-	return r.db.QueryRow(ctx, query, c.Name, c.BranchID).Scan(&c.ID, &c.TotalAmount, &c.CreatedAt)
+
+	err := r.db.QueryRow(ctx, query, c.Name, c.BranchID).Scan(&c.ID, &c.TotalAmount, &c.CreatedAt)
+
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == "23505" {
+				// Return a specific error message that your frontend can catch
+				return errors.New("A category with this name already exists")
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 func (r *ExpenseRepository) GetCategories(ctx context.Context, branchID *int64) ([]model.ExpenseCategory, error) {
@@ -66,12 +82,18 @@ func (r *ExpenseRepository) CreateExpense(ctx context.Context, e *model.Expense)
 
 func (r *ExpenseRepository) GetExpenses(ctx context.Context, branchID int64) ([]model.Expense, error) {
 	query := `
-		SELECT e.id, e.category_id, c.name, e.branch_id, e.amount, e.expense_date, e.description, e.created_by, e.created_at
-		FROM expenses e JOIN expense_categories c ON e.category_id = c.id
-		WHERE e.branch_id = $1
-		ORDER BY e.expense_date DESC
-	`
-	rows, err := r.db.Query(ctx, query, branchID)
+        SELECT e.id, e.category_id, c.name, e.branch_id, e.amount, e.expense_date, e.description, e.created_by, e.created_at
+        FROM expenses e 
+        JOIN expense_categories c ON e.category_id = c.id
+    `
+	var args []interface{}
+	if branchID > 0 {
+		query += ` WHERE e.branch_id = $1 `
+		args = append(args, branchID)
+	}
+	query += ` ORDER BY e.expense_date DESC`
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +102,13 @@ func (r *ExpenseRepository) GetExpenses(ctx context.Context, branchID int64) ([]
 	var expenses []model.Expense
 	for rows.Next() {
 		var e model.Expense
-		if err := rows.Scan(&e.ID, &e.CategoryID, &e.CategoryName, &e.BranchID, &e.Amount, &e.ExpenseDate, &e.Description, &e.CreatedBy, &e.CreatedAt); err != nil {
+		// Scan now works correctly with e.ExpenseDate as time.Time
+		err := rows.Scan(
+			&e.ID, &e.CategoryID, &e.CategoryName, &e.BranchID,
+			&e.Amount, &e.ExpenseDate, &e.Description,
+			&e.CreatedBy, &e.CreatedAt,
+		)
+		if err != nil {
 			return nil, err
 		}
 		expenses = append(expenses, e)

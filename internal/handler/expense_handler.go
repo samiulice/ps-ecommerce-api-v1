@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -21,7 +20,7 @@ func NewExpenseHandler(svc *service.ExpenseService) *ExpenseHandler {
 
 func (h *ExpenseHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
 	var c model.ExpenseCategory
-	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
+	if err := utils.ReadJSON(w, r, &c); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}
@@ -40,11 +39,11 @@ func (h *ExpenseHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
 	// The client can optionally send branch_id as query param to filter
 	var bID *int64
 	// parsing query parameter
-	// branchIDStr := r.URL.Query().Get("branch_id")
-	// if branchIDStr != "" {
-	// 	id, _ := strconv.ParseInt(branchIDStr, 10, 64)
-	// 	bID = &id
-	// }
+	branchIDStr := r.URL.Query().Get("branch_id")
+	if branchIDStr != "" {
+		id, _ := strconv.ParseInt(branchIDStr, 10, 64)
+		bID = &id
+	}
 
 	cats, err := h.svc.GetCategories(r.Context(), bID)
 	if err != nil {
@@ -56,7 +55,7 @@ func (h *ExpenseHandler) GetCategories(w http.ResponseWriter, r *http.Request) {
 
 func (h *ExpenseHandler) CreateExpense(w http.ResponseWriter, r *http.Request) {
 	var e model.Expense
-	if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
+	if err := utils.ReadJSON(w, r, &e); err != nil {
 		utils.BadRequest(w, err)
 		return
 	}

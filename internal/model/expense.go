@@ -16,7 +16,7 @@ type Expense struct {
 	CategoryID  int64      `json:"category_id" db:"category_id"`
 	BranchID    int64      `json:"branch_id" db:"branch_id"`
 	Amount      float64    `json:"amount" db:"amount"`
-	ExpenseDate string     `json:"expense_date" db:"expense_date"`
+	ExpenseDate time.Time  `json:"expense_date" db:"expense_date"`
 	Description string     `json:"description,omitempty" db:"description"`
 	CreatedBy   int64      `json:"created_by,omitempty" db:"created_by"`
 	CreatedAt   *time.Time `json:"created_at,omitempty" db:"created_at"`

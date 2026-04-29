@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/projuktisheba/pse-api-v1/internal/model"
 	"github.com/projuktisheba/pse-api-v1/internal/repository"
 )
@@ -22,12 +23,12 @@ func (s *DashboardService) GetSaleComparison(ctx context.Context, period string)
 	return s.repo.GetSaleComparisonChart(ctx, period)
 }
 
-func (s *DashboardService) GetExpenseGraph(ctx context.Context, period string) ([]model.ChartPoint, error) {
-	return s.repo.GetFinancialGraph(ctx, period, "total_expenses")
+func (s *DashboardService) GetOperationalExpenseGraph(ctx context.Context, period string) ([]model.ChartPoint, error) {
+	return s.repo.GetFinancialGraph(ctx, period, "operational_expenses")
 }
 
-func (s *DashboardService) GetNetProfitGraph(ctx context.Context, period string) ([]model.ChartPoint, error) {
-	return s.repo.GetFinancialGraph(ctx, period, "net_profit")
+func (s *DashboardService) GetNetCashFlowGraph(ctx context.Context, period string) ([]model.ChartPoint, error) {
+	return s.repo.GetFinancialGraph(ctx, period, "net_cash_flow")
 }
 
 func (s *DashboardService) GetPopularProducts(ctx context.Context) ([]model.ProductSummary, error) {

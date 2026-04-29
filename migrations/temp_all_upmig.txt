@@ -1,0 +1,878 @@
+-- =============================================
+-- 1. Units Table
+-- =============================================
+CREATE TABLE IF NOT EXISTS units (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    symbol VARCHAR(20) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- 2. ATTRIBUTES
+-- =============================================
+CREATE TABLE IF NOT EXISTS attributes (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- 3. Products Table
+-- =============================================
+CREATE TABLE IF NOT EXISTS products (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+
+    category_id BIGINT REFERENCES categories(id),
+    sub_category_id BIGINT DEFAULT NULL,
+    sub_sub_category_id BIGINT DEFAULT NULL,
+    brand_id BIGINT DEFAULT NULL,
+
+    sku TEXT UNIQUE,
+    status SMALLINT NOT NULL DEFAULT 1,
+
+    unit_id INT REFERENCES units(id),
+
+    tags TEXT DEFAULT '',
+    thumbnail TEXT DEFAULT '',
+    gallery_images TEXT[],
+
+    retail_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+    wholesale_price NUMERIC(12,2) NOT NULL DEFAULT 0,
+    purchase_price NUMERIC(12,2) DEFAULT 0,
+
+    min_retail_order_qty NUMERIC(12,2) NOT NULL DEFAULT 1,
+    min_wholesale_order_qty NUMERIC(12,2) NOT NULL DEFAULT 1,
+    current_stock_qty NUMERIC(12,2) NOT NULL DEFAULT 0,
+    stock_alert_qty NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total_sold NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    discount_type VARCHAR(20) DEFAULT 'percentage',
+    discount_amount NUMERIC(12,2) DEFAULT 0,
+
+    tax_amount NUMERIC(12,2) DEFAULT 0,
+    tax_type VARCHAR(20) DEFAULT 'exclusive',
+
+    shipping_cost NUMERIC(12,2) DEFAULT 0,
+    shipping_type VARCHAR(20) DEFAULT 'static',
+
+    has_variation BOOLEAN NOT NULL DEFAULT FALSE,
+    variation_attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    total_reviews BIGINT DEFAULT 0,
+    avg_rating NUMERIC(3,2) DEFAULT 0,
+
+    five_star_count BIGINT NOT NULL DEFAULT 0,
+    four_star_count BIGINT NOT NULL DEFAULT 0,
+    three_star_count BIGINT NOT NULL DEFAULT 0,
+    two_star_count BIGINT NOT NULL DEFAULT 0,
+    one_star_count BIGINT NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================
+-- PRODUCT INDEXES (Optimized)
+-- =============================
+
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_sub_category ON products(sub_category_id);
+CREATE INDEX IF NOT EXISTS idx_products_sub_subcategory ON products(sub_sub_category_id);
+CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
+
+-- IMPORTANT: FK index (Postgres does NOT auto create)
+CREATE INDEX IF NOT EXISTS idx_products_unit_id ON products(unit_id);
+
+CREATE INDEX IF NOT EXISTS idx_products_stock ON products(current_stock_qty);
+
+-- Sorting indexes
+CREATE INDEX IF NOT EXISTS idx_products_price ON products(unit_price);
+CREATE INDEX IF NOT EXISTS idx_products_total_sold ON products(total_sold);
+CREATE INDEX IF NOT EXISTS idx_products_avg_rating ON products(avg_rating);
+CREATE INDEX IF NOT EXISTS idx_products_total_reviews ON products(total_reviews);
+
+CREATE INDEX IF NOT EXISTS idx_products_five_star_count ON products(five_star_count);
+CREATE INDEX IF NOT EXISTS idx_products_four_star_count ON products(four_star_count);
+CREATE INDEX IF NOT EXISTS idx_products_three_star_count ON products(three_star_count);
+CREATE INDEX IF NOT EXISTS idx_products_two_star_count ON products(two_star_count);
+CREATE INDEX IF NOT EXISTS idx_products_one_star_count ON products(one_star_count);
+
+-- Full text search
+CREATE INDEX IF NOT EXISTS idx_products_tags
+ON products
+USING GIN (to_tsvector('simple', tags));
+
+-- JSONB filter optimization
+CREATE INDEX IF NOT EXISTS idx_products_variation_attributes
+ON products
+USING GIN (variation_attributes);
+
+
+-- =============================================
+-- 4. PRODUCT VARIATIONS
+-- =============================================
+CREATE TABLE IF NOT EXISTS product_variations (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT REFERENCES products(id) ON DELETE CASCADE,
+
+    variation_attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+
+    sku TEXT NOT NULL,
+    price NUMERIC(12,2) NOT NULL,
+    stock_qty NUMERIC(12,2) NOT NULL DEFAULT 0,
+
+    thumbnail TEXT DEFAULT '',
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sku, product_id)
+);
+
+-- Variation Indexes
+CREATE INDEX IF NOT EXISTS idx_variations_product_id
+ON product_variations(product_id);
+
+CREATE INDEX IF NOT EXISTS idx_variations_attributes
+ON product_variations
+USING GIN (variation_attributes);
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS idx_products_name_trgm
+ON products
+USING GIN (name gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_tags_trgm
+ON products
+USING GIN (tags gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS idx_products_status_created_at
+ON products (status, created_at DESC);
+
+-- =============================================
+-- 5. Product Reviews
+-- =============================================
+CREATE TABLE IF NOT EXISTS product_reviews (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    customer_id BIGINT NOT NULL REFERENCES customers(id),
+
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    title VARCHAR(255),
+    comment TEXT,
+
+    review_images TEXT[],
+
+    is_verified_purchase BOOLEAN DEFAULT FALSE,
+    status SMALLINT DEFAULT 1,
+
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE(product_id, customer_id)
+);
+
+-- Review Indexes (Optimized)
+CREATE INDEX IF NOT EXISTS idx_reviews_product ON product_reviews(product_id);
+
+-- Important for review listing page
+CREATE INDEX IF NOT EXISTS idx_reviews_product_created
+ON product_reviews(product_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_status ON product_reviews(status);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_rating ON product_reviews(rating);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_customer ON product_reviews(customer_id);
+-- Migration: Create customers table (PostgreSQL)
+-- Converted from MySQL schema
+
+CREATE TABLE IF NOT EXISTS customers (
+    id                      BIGSERIAL PRIMARY KEY,
+    name                    VARCHAR(255),
+    f_name                  VARCHAR(255),
+    l_name                  VARCHAR(255),
+    phone                   VARCHAR(25) NOT NULL,
+    image                   TEXT NOT NULL DEFAULT 'def.png',
+    email                   VARCHAR(255),
+    email_verified_at       TIMESTAMPTZ,
+    password                TEXT NOT NULL,
+    remember_token          VARCHAR(100),
+    created_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at              TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    street_address          VARCHAR(250),
+    country                 VARCHAR(50),
+    city                    VARCHAR(50),
+    zip                     VARCHAR(20),
+    house_no                VARCHAR(50),
+    apartment_no            VARCHAR(50),
+    cm_firebase_token       VARCHAR(255),
+    is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+    is_wholesaler           BOOLEAN NOT NULL DEFAULT FALSE,
+    payment_card_last_four  VARCHAR(255),
+    payment_card_brand      VARCHAR(255),
+    payment_card_fawry_token TEXT,
+    login_medium            VARCHAR(255),
+    social_id               VARCHAR(255),
+    is_phone_verified       BOOLEAN NOT NULL DEFAULT FALSE,
+    temporary_token         VARCHAR(255),
+    is_email_verified       BOOLEAN NOT NULL DEFAULT FALSE,
+    wallet_balance          NUMERIC(8, 2),
+    loyalty_point           NUMERIC(18, 4) DEFAULT 0.0000,
+    login_hit_count         SMALLINT NOT NULL DEFAULT 0,
+    is_temp_blocked         BOOLEAN NOT NULL DEFAULT FALSE,
+    temp_block_time         TIMESTAMPTZ,
+    referral_code           VARCHAR(255),
+    referred_by             INTEGER,
+    app_language            VARCHAR(255) NOT NULL DEFAULT 'en',
+
+    CONSTRAINT customers_email_unique UNIQUE (email),
+    CONSTRAINT customers_email_phone UNIQUE (phone)
+);
+
+
+-- Index
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
+CREATE INDEX IF NOT EXISTS idx_customers_referral_code ON customers(referral_code);
+
+-- Migration: Create orders and order_items tables
+-- Up Migration
+
+-- Order Status Enum Type
+DO $$ BEGIN
+    CREATE TYPE order_status AS ENUM ('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Payment Status Enum Type
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('pending', 'paid', 'failed', 'refunded', 'partially_refunded');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+-- Orders Table
+CREATE TABLE IF NOT EXISTS orders (
+    id BIGSERIAL PRIMARY KEY,
+    order_number VARCHAR(50) UNIQUE NOT NULL,
+    sale_type VARCHAR(50) DEFAULT 'retail',
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    customer_name VARCHAR(100) NOT NULL,
+    customer_mobile VARCHAR(20) NOT NULL,
+    customer_email VARCHAR(100),
+    customer_area VARCHAR(255),
+    customer_city VARCHAR(100),
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'COD',
+    payment_status payment_status NOT NULL DEFAULT 'pending',
+    order_status order_status NOT NULL DEFAULT 'pending',
+    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    shipping_cost DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    discount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    tax DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    total DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    order_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    delivered_at TIMESTAMPTZ,
+    cancelled_at TIMESTAMPTZ,
+    cancelled_reason TEXT
+);
+
+-- Order Items Table
+CREATE TABLE IF NOT EXISTS order_items (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id BIGINT REFERENCES products(id) ON DELETE SET NULL,
+    product_name VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    total_price DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    discount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    tax DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    variation_info JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for orders table
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_order_status ON orders(order_status);
+CREATE INDEX IF NOT EXISTS idx_orders_payment_status ON orders(payment_status);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_mobile ON orders(customer_mobile);
+
+-- Indexes for order_items table
+CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON order_items(product_id);
+
+-- Trigger function to update updated_at
+CREATE OR REPLACE FUNCTION update_orders_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Attach trigger to orders table
+DROP TRIGGER IF EXISTS trigger_orders_updated_at ON orders;
+CREATE TRIGGER trigger_orders_updated_at
+    BEFORE UPDATE ON orders
+    FOR EACH ROW
+    EXECUTE FUNCTION update_orders_updated_at();
+
+-- Function to generate order number
+CREATE OR REPLACE FUNCTION generate_order_number()
+RETURNS TEXT AS $$
+DECLARE
+    prefix TEXT := 'ORD';
+    date_part TEXT;
+    seq_num INT;
+    order_num TEXT;
+BEGIN
+    date_part := TO_CHAR(NOW(), 'YYYYMMDD');
+    
+    -- Get count of orders today + 1
+    SELECT COUNT(*) + 1 INTO seq_num
+    FROM orders
+    WHERE DATE(created_at) = CURRENT_DATE;
+    
+    order_num := prefix || '-' || date_part || '-' || LPAD(seq_num::TEXT, 4, '0');
+    
+    RETURN order_num;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Comments
+COMMENT ON TABLE orders IS 'Stores customer orders';
+COMMENT ON TABLE order_items IS 'Stores individual items within an order';
+COMMENT ON COLUMN orders.order_number IS 'Unique order identifier for display (e.g., ORD-20260205-0001)';
+COMMENT ON COLUMN orders.payment_method IS 'Payment method: COD, ONLINE, CARD, etc.';
+-- Migration: Create suppliers table (PostgreSQL)
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id                  BIGSERIAL PRIMARY KEY,
+    supplier_code       VARCHAR(50) NOT NULL,
+    name                VARCHAR(255) NOT NULL,
+    company_name        VARCHAR(255),
+    contact_person      VARCHAR(255),
+    phone               VARCHAR(25) NOT NULL,
+    email               VARCHAR(255),
+    website             VARCHAR(255),
+    tax_id              VARCHAR(100),
+    trade_license_no    VARCHAR(100),
+    payment_terms       VARCHAR(120),
+    credit_limit        NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    outstanding_balance NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    lead_time_days      INTEGER,
+    rating              NUMERIC(3, 2),
+    street_address      VARCHAR(250),
+    country             VARCHAR(50),
+    city                VARCHAR(50),
+    zip                 VARCHAR(20),
+    notes               TEXT,
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT suppliers_supplier_code_unique UNIQUE (supplier_code),
+    CONSTRAINT suppliers_phone_unique UNIQUE (phone),
+    CONSTRAINT suppliers_email_unique UNIQUE (email),
+    CONSTRAINT suppliers_rating_range CHECK (rating IS NULL OR (rating >= 0 AND rating <= 5))
+);
+
+CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name);
+CREATE INDEX IF NOT EXISTS idx_suppliers_is_active ON suppliers(is_active);
+CREATE INDEX IF NOT EXISTS idx_suppliers_country_city ON suppliers(country, city);
+CREATE INDEX IF NOT EXISTS idx_suppliers_created_at ON suppliers(created_at DESC);
+-- Migration: Create purchase order, purchase, and purchase return tables (PostgreSQL)
+
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    id            BIGSERIAL PRIMARY KEY,
+    order_date    DATE NOT NULL,
+    due_date      DATE,
+    prefix_code   VARCHAR(255),
+    count_id      VARCHAR(255),
+    order_code    VARCHAR(255) NOT NULL,
+    order_status  VARCHAR(255) NOT NULL,
+    party_id      BIGINT NOT NULL,
+    state_id      BIGINT,
+    note          TEXT,
+    round_off     NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    grand_total   NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    paid_amount   NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    currency_id   BIGINT,
+    exchange_rate NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    created_by    BIGINT,
+    updated_by    BIGINT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT purchase_orders_order_code_unique UNIQUE (order_code),
+    CONSTRAINT purchase_orders_party_id_fkey FOREIGN KEY (party_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_order_date ON purchase_orders(order_date DESC);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_party_id ON purchase_orders(party_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders(order_status);
+
+CREATE TABLE IF NOT EXISTS purchases (
+    id                               BIGSERIAL PRIMARY KEY,
+    purchase_date                    DATE NOT NULL,
+    prefix_code                      VARCHAR(255),
+    count_id                         VARCHAR(255),
+    purchase_code                    VARCHAR(255) NOT NULL,
+    reference_no                     VARCHAR(255),
+    purchase_order_id                BIGINT,
+    party_id                         BIGINT NOT NULL,
+    state_id                         BIGINT,
+    carrier_id                       BIGINT,
+    note                             TEXT,
+    shipping_charge                  NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    is_shipping_charge_distributed   BOOLEAN NOT NULL DEFAULT FALSE,
+    round_off                        NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    grand_total                      NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    change_return                    INTEGER,
+    paid_amount                      NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    currency_id                      BIGINT,
+    exchange_rate                    NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    created_by                       BIGINT,
+    updated_by                       BIGINT,
+    created_at                       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at                       TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT purchases_purchase_code_unique UNIQUE (purchase_code),
+    CONSTRAINT purchases_party_id_fkey FOREIGN KEY (party_id) REFERENCES suppliers(id) ON DELETE RESTRICT,
+    CONSTRAINT purchases_purchase_order_id_fkey FOREIGN KEY (purchase_order_id) REFERENCES purchase_orders(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchases_purchase_date ON purchases(purchase_date DESC);
+CREATE INDEX IF NOT EXISTS idx_purchases_party_id ON purchases(party_id);
+CREATE INDEX IF NOT EXISTS idx_purchases_purchase_order_id ON purchases(purchase_order_id);
+
+CREATE TABLE IF NOT EXISTS purchase_return (
+    id            BIGSERIAL PRIMARY KEY,
+    return_date   DATE NOT NULL,
+    prefix_code   VARCHAR(255),
+    count_id      VARCHAR(255),
+    return_code   VARCHAR(255) NOT NULL,
+    reference_no  VARCHAR(255),
+    party_id      BIGINT NOT NULL,
+    state_id      BIGINT,
+    note          TEXT,
+    round_off     NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    grand_total   NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    paid_amount   NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    currency_id   BIGINT,
+    exchange_rate NUMERIC(20, 4) NOT NULL DEFAULT 0.0000,
+    created_by    BIGINT,
+    updated_by    BIGINT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT purchase_return_return_code_unique UNIQUE (return_code),
+    CONSTRAINT purchase_return_party_id_fkey FOREIGN KEY (party_id) REFERENCES suppliers(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_purchase_return_date ON purchase_return(return_date DESC);
+CREATE INDEX IF NOT EXISTS idx_purchase_return_party_id ON purchase_return(party_id);
+-- Migration: Harden integrity rules and lookup indexes for purchases, suppliers, customers, and social links.
+
+-- -----------------------------
+-- purchase_orders constraints
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'purchase_orders_due_date_after_order_chk'
+    ) THEN
+        ALTER TABLE purchase_orders
+            ADD CONSTRAINT purchase_orders_due_date_after_order_chk
+            CHECK (due_date IS NULL OR due_date >= order_date)
+            NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'purchase_orders_totals_non_negative_chk'
+    ) THEN
+        ALTER TABLE purchase_orders
+            ADD CONSTRAINT purchase_orders_totals_non_negative_chk
+            CHECK (
+                round_off >= 0
+                AND grand_total >= 0
+                AND paid_amount >= 0
+                AND exchange_rate >= 0
+                AND paid_amount <= grand_total
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_due_date
+    ON purchase_orders (due_date);
+
+-- -----------------------------
+-- purchases constraints
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'purchases_totals_non_negative_chk'
+    ) THEN
+        ALTER TABLE purchases
+            ADD CONSTRAINT purchases_totals_non_negative_chk
+            CHECK (
+                shipping_charge >= 0
+                AND round_off >= 0
+                AND grand_total >= 0
+                AND paid_amount >= 0
+                AND exchange_rate >= 0
+                AND paid_amount <= grand_total
+                AND (change_return IS NULL OR change_return >= 0)
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_purchases_reference_no
+    ON purchases (reference_no)
+    WHERE reference_no IS NOT NULL;
+
+-- -----------------------------
+-- purchase_return constraints
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'purchase_return_totals_non_negative_chk'
+    ) THEN
+        ALTER TABLE purchase_return
+            ADD CONSTRAINT purchase_return_totals_non_negative_chk
+            CHECK (
+                round_off >= 0
+                AND grand_total >= 0
+                AND paid_amount >= 0
+                AND exchange_rate >= 0
+                AND paid_amount <= grand_total
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_purchase_return_reference_no
+    ON purchase_return (reference_no)
+    WHERE reference_no IS NOT NULL;
+
+-- -----------------------------
+-- suppliers constraints/indexes
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'suppliers_non_negative_values_chk'
+    ) THEN
+        ALTER TABLE suppliers
+            ADD CONSTRAINT suppliers_non_negative_values_chk
+            CHECK (
+                credit_limit >= 0
+                AND outstanding_balance >= 0
+                AND (lead_time_days IS NULL OR lead_time_days >= 0)
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'suppliers_required_trimmed_fields_chk'
+    ) THEN
+        ALTER TABLE suppliers
+            ADD CONSTRAINT suppliers_required_trimmed_fields_chk
+            CHECK (
+                btrim(supplier_code) <> ''
+                AND btrim(name) <> ''
+                AND btrim(phone) <> ''
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_suppliers_email_ci_unique
+    ON suppliers (LOWER(email))
+    WHERE email IS NOT NULL;
+
+-- -----------------------------
+-- customers constraints/indexes
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'customers_required_trimmed_phone_chk'
+    ) THEN
+        ALTER TABLE customers
+            ADD CONSTRAINT customers_required_trimmed_phone_chk
+            CHECK (btrim(phone) <> '')
+            NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'customers_non_negative_values_chk'
+    ) THEN
+        ALTER TABLE customers
+            ADD CONSTRAINT customers_non_negative_values_chk
+            CHECK (
+                (wallet_balance IS NULL OR wallet_balance >= 0)
+                AND (loyalty_point IS NULL OR loyalty_point >= 0)
+                AND login_hit_count >= 0
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_customers_is_active_created_at
+    ON customers (is_active, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_customers_is_wholesaler
+    ON customers (is_wholesaler);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_email_ci_unique
+    ON customers (LOWER(email))
+    WHERE email IS NOT NULL;
+
+-- -----------------------------
+-- social_links constraints/indexes
+-- -----------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'social_links_required_trimmed_fields_chk'
+    ) THEN
+        ALTER TABLE social_links
+            ADD CONSTRAINT social_links_required_trimmed_fields_chk
+            CHECK (
+                btrim(name) <> ''
+                AND btrim(icon) <> ''
+                AND btrim(link) <> ''
+            )
+            NOT VALID;
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'social_links_display_order_non_negative_chk'
+    ) THEN
+        ALTER TABLE social_links
+            ADD CONSTRAINT social_links_display_order_non_negative_chk
+            CHECK (display_order >= 0)
+            NOT VALID;
+    END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_social_links_name
+    ON social_links (name);
+-- =============================================
+-- POS System Tables
+-- =============================================
+
+-- POS Sales
+CREATE TABLE IF NOT EXISTS pos_sales (
+    id BIGSERIAL PRIMARY KEY,
+    reference_no VARCHAR(50) UNIQUE NOT NULL,
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL, -- optional
+    branch_id BIGINT REFERENCES branches(id) ON DELETE SET NULL,
+    sale_type VARCHAR(50) DEFAULT 'retail' NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    discount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    tax DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    total DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    amount_paid DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'cash', -- cash, card, mobile_banking
+    payment_status payment_status NOT NULL DEFAULT 'paid', -- typically paid for POS
+    sale_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    sale_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- POS Sale Items
+CREATE TABLE IF NOT EXISTS pos_sale_items (
+    id BIGSERIAL PRIMARY KEY,
+    pos_sale_id BIGINT NOT NULL REFERENCES pos_sales(id) ON DELETE CASCADE,
+    product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+    product_variation_id BIGINT REFERENCES product_variations(id) ON DELETE SET NULL, 
+    product_name VARCHAR(255) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(12, 2) NOT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL,
+    tax_amount DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    total DECIMAL(12, 2) NOT NULL
+);
+
+-- Update products stock trigger for POS
+CREATE OR REPLACE FUNCTION pos_sale_item_insert_trigger()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE products
+    SET current_stock_qty = current_stock_qty - NEW.quantity
+    WHERE id = NEW.product_id;
+    
+    IF NEW.product_variation_id IS NOT NULL THEN
+        UPDATE product_variations
+        SET stock_qty = stock_qty - NEW.quantity
+        WHERE id = NEW.product_variation_id;
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_pos_sale_item_insert
+AFTER INSERT ON pos_sale_items
+FOR EACH ROW
+EXECUTE FUNCTION pos_sale_item_insert_trigger();-- Migration: Create Delivery Management tables
+-- Up Migration
+
+-- Delivery Methods Table
+CREATE TABLE IF NOT EXISTS delivery_methods (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    base_cost DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    estimated_days VARCHAR(50),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Delivery Men Table (Links to employees table for auth)
+CREATE TABLE IF NOT EXISTS delivery_men (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id BIGINT UNIQUE REFERENCES employees(id) ON DELETE CASCADE,       
+    identity_type VARCHAR(50),
+    identity_number VARCHAR(100),
+    identity_image VARCHAR(255),
+    vehicle_type VARCHAR(50),
+    vehicle_number VARCHAR(100),
+    bank_name VARCHAR(100),
+    account_no VARCHAR(100),
+    account_holder_name VARCHAR(100),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_online BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Order Deliveries Table
+CREATE TABLE IF NOT EXISTS order_deliveries (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT UNIQUE NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    delivery_man_id BIGINT REFERENCES delivery_men(id) ON DELETE SET NULL,
+    delivery_status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending, accepted, out_for_delivery, delivered, failed, cancelled
+    delivery_fee_collected DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    delivery_man_earning DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    assigned_at TIMESTAMPTZ DEFAULT NOW(),
+    delivered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Delivery Wallets Table
+CREATE TABLE IF NOT EXISTS delivery_wallets (
+    id BIGSERIAL PRIMARY KEY,
+    delivery_man_id BIGINT UNIQUE NOT NULL REFERENCES delivery_men(id) ON DELETE CASCADE,
+    total_earned DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    total_withdrawn DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    current_balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Withdraw Requests Table
+CREATE TABLE IF NOT EXISTS withdraw_requests (
+    id BIGSERIAL PRIMARY KEY,
+    delivery_man_id BIGINT NOT NULL REFERENCES delivery_men(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+    status VARCHAR(50) NOT NULL DEFAULT 'pending', -- pending, approved, rejected
+    admin_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Triggers for updated_at
+CREATE OR REPLACE FUNCTION update_delivery_tables_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_delivery_methods_updated_at BEFORE UPDATE ON delivery_methods FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+CREATE TRIGGER trigger_delivery_men_updated_at BEFORE UPDATE ON delivery_men FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+CREATE TRIGGER trigger_order_deliveries_updated_at BEFORE UPDATE ON order_deliveries FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+CREATE TRIGGER trigger_delivery_wallets_updated_at BEFORE UPDATE ON delivery_wallets FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+CREATE TRIGGER trigger_withdraw_requests_updated_at BEFORE UPDATE ON withdraw_requests FOR EACH ROW EXECUTE FUNCTION update_delivery_tables_updated_at();
+-- Insert Delivery Module Permissions
+INSERT INTO permissions (key, display_name, module, description)
+VALUES 
+    ('delivery.manage', 'Manage Delivery Settings', 'delivery', 'Can configure delivery methods, driver onboarding, and handle approvals'),
+    ('delivery.assign', 'Assign Deliveries', 'delivery', 'Can assign orders to delivery men')
+ON CONFLICT (key) DO NOTHING;
+
+-- Insert Delivery Man Role
+INSERT INTO roles (name, slug, description, is_active)
+VALUES 
+    ('Delivery Man', 'delivery_man', 'Platform delivery rider executing orders on the road', TRUE)
+ON CONFLICT (slug) DO NOTHING;
+
+-- Assign Delivery Permissions to Admins
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM roles r
+CROSS JOIN permissions p
+WHERE r.slug IN ('chairman', 'manager') AND p.key IN ('delivery.manage', 'delivery.assign')
+ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS expense_categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    branch_id BIGINT NULL, -- Null if it's a global category, otherwise specific to a branch
+    total_amount NUMERIC(15,2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS expenses (
+    id BIGSERIAL PRIMARY KEY,
+    category_id BIGINT NOT NULL REFERENCES expense_categories(id) ON DELETE CASCADE,
+    branch_id BIGINT NOT NULL,
+    amount NUMERIC(15,2) NOT NULL,
+    expense_date TIMESTAMP NOT NULL,
+    description TEXT,
+    created_by BIGINT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

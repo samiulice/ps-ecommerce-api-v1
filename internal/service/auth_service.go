@@ -85,7 +85,7 @@ func (s *AuthService) EmployeeLogin(ctx context.Context, email, password string)
 	}
 
 	// Generate tokens with "employee" type prefix
-	access, err := s.generateJWT(employee.ID, "employee", employee.Role, employee.RoleID, employee.Permissions, 15*time.Minute)
+	access, err := s.generateJWT(employee.ID, "employee", employee.Role, employee.RoleID, employee.BranchID, employee.Permissions, 15*time.Minute)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -125,7 +125,7 @@ func (s *AuthService) EmployeeRefresh(ctx context.Context, token string) (string
 		return "", errors.New("customer not found")
 	}
 
-	access, err := s.generateJWT(uid, "employee", employee.Role, employee.RoleID, employee.Permissions, 15*time.Minute)
+	access, err := s.generateJWT(uid, "employee", employee.Role, employee.RoleID,employee.BranchID, employee.Permissions, 15*time.Minute)
 	if err != nil {
 		return "", err
 	}
@@ -264,12 +264,13 @@ func (s *AuthService) CustomerRefresh(ctx context.Context, token string) (string
 // ==================== TOKEN GENERATION ====================
 
 // generateJWT creates a signed JWT access token for employees.
-func (s *AuthService) generateJWT(uid int, customerType, role string, roleID int64, permissions []string, ttl time.Duration) (string, error) {
+func (s *AuthService) generateJWT(uid int, customerType, role string, roleID, branchId int64, permissions []string, ttl time.Duration) (string, error) {
 	claims := jwt.MapClaims{
 		"sub":         uid,
 		"type":        customerType,
 		"role":        role,
 		"role_id":     roleID,
+		"branch_id": branchId,
 		"permissions": permissions,
 		"exp":         time.Now().Add(ttl).Unix(),
 		"iat":         time.Now().Unix(),

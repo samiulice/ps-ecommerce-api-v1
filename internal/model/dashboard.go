@@ -5,9 +5,9 @@ type StatsCards struct {
 	TotalOrders      int     `json:"total_orders"`
 	TotalPOSSales    int     `json:"total_pos_sales"`
 	TotalCustomers   int     `json:"total_customers"`
-	TotalPurchases   float64 `json:"total_purchases"`
-	TotalExpenses    float64 `json:"total_expenses"`
-	NetProfit        float64 `json:"net_profit"`
+	InventoryPurchaseCosts   float64 `json:"total_purchases"`
+	OperationalExpenses    float64 `json:"total_expenses"`
+	NetCashFlow        float64 `json:"net_profit"`
 	TotalProducts    int     `json:"total_products"`
 	LowStockProducts int     `json:"low_stock_products"`
 }
