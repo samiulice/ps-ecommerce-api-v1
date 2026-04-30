@@ -116,7 +116,7 @@ func (s *DeliveryService) ListDeliveryMethods(ctx context.Context) ([]model.Deli
 	return s.repo.ListDeliveryMethods(ctx)
 }
 
-func (s *DeliveryService) GetDeliveryHistory(ctx context.Context, page, limit int) ([]repository.OrderDeliveryHistory, error) {
+func (s *DeliveryService) GetDeliveryHistory(ctx context.Context, page, limit int, search, status string) ([]repository.OrderDeliveryHistory, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -124,7 +124,7 @@ func (s *DeliveryService) GetDeliveryHistory(ctx context.Context, page, limit in
 		limit = 20
 	}
 	offset := (page - 1) * limit
-	return s.repo.GetDeliveryHistory(ctx, limit, offset)
+	return s.repo.GetDeliveryHistory(ctx, limit, offset, search, status)
 }
 
 // GetPortalOrders handles logic to fetch orders assigned to a specific employee

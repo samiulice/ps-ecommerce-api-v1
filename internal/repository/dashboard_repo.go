@@ -179,7 +179,7 @@ func (r *DashboardRepository) GetPopularProducts(ctx context.Context) ([]model.P
 }
 
 func (r *DashboardRepository) GetLowStockProducts(ctx context.Context) ([]model.ProductSummary, error) {
-	query := `SELECT id, name, current_stock_qty::float8, stock_alert_qty::float8 FROM products WHERE current_stock_qty <= stock_alert_qty`
+	query := `SELECT id, name, sku, current_stock_qty::float8, stock_alert_qty::float8 FROM products WHERE current_stock_qty <= stock_alert_qty`
 	rows, err := r.db.Query(ctx, query)
 	if err != nil {
 		return nil, err
@@ -189,9 +189,13 @@ func (r *DashboardRepository) GetLowStockProducts(ctx context.Context) ([]model.
 	products := make([]model.ProductSummary, 0)
 	for rows.Next() {
 		var p model.ProductSummary
-		if err := rows.Scan(&p.ID, &p.Name, &p.CurrentStock, &p.AlertStock); err != nil {
+		var sku *string
+		if err := rows.Scan(&p.ID, &p.Name, &sku, &p.CurrentStock, &p.AlertStock); err != nil {
 			fmt.Printf("GetLowStockProducts scan err: %v\n", err)
 			continue
+		}
+		if sku != nil {
+			p.SKU = *sku
 		}
 		products = append(products, p)
 	}

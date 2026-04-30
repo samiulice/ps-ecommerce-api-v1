@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -266,18 +268,40 @@ type OrderDeliveryHistory struct {
 	DeliveryManPhone *string `json:"delivery_man_phone,omitempty"`
 }
 
-func (r *DeliveryRepository) GetDeliveryHistory(ctx context.Context, limit, offset int) ([]OrderDeliveryHistory, error) {
-	query := `
+func (r *DeliveryRepository) GetDeliveryHistory(ctx context.Context, limit, offset int, search, status string) ([]OrderDeliveryHistory, error) {
+	whereClauses := []string{"1=1"}
+	var args []interface{}
+	argID := 1
+
+	if status != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("od.delivery_status = $%d", argID))
+		args = append(args, status)
+		argID++
+	}
+
+	if search != "" {
+		whereClauses = append(whereClauses, fmt.Sprintf("(od.order_number::text ILIKE $%d OR e.name ILIKE $%d OR e.mobile ILIKE $%d)", argID, argID, argID))
+		args = append(args, "%"+search+"%")
+		argID++
+	}
+
+	whereSql := strings.Join(whereClauses, " AND ")
+
+	query := fmt.Sprintf(`
                 SELECT 
                         od.id, od.order_id, od.delivery_man_id, COALESCE(e.name, ''), COALESCE(e.mobile, ''), od.delivery_status, 
                         od.delivery_fee_collected, od.delivery_man_earning, od.assigned_at, od.delivered_at, od.created_at, od.updated_at
                 FROM order_deliveries od
                 LEFT JOIN delivery_men dm ON od.delivery_man_id = dm.id
                 LEFT JOIN employees e ON dm.employee_id = e.id
+                WHERE %s
                 ORDER BY od.created_at DESC
-                LIMIT $1 OFFSET $2
-        `
-	rows, err := r.db.Query(ctx, query, limit, offset)
+                LIMIT $%d OFFSET $%d
+        `, whereSql, argID, argID+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

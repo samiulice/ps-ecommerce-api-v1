@@ -174,6 +174,8 @@ func (h *DeliveryHandler) ListDeliveryMen(w http.ResponseWriter, r *http.Request
 func (h *DeliveryHandler) GetDeliveryHistory(w http.ResponseWriter, r *http.Request) {
         pageStr := r.URL.Query().Get("page")
         limitStr := r.URL.Query().Get("limit")
+        search := r.URL.Query().Get("search")
+        status := r.URL.Query().Get("status")
 
         page, _ := strconv.Atoi(pageStr)
         limit, _ := strconv.Atoi(limitStr)
@@ -185,7 +187,7 @@ func (h *DeliveryHandler) GetDeliveryHistory(w http.ResponseWriter, r *http.Requ
                 limit = 20
         }
 
-        history, err := h.svc.GetDeliveryHistory(r.Context(), page, limit)
+        history, err := h.svc.GetDeliveryHistory(r.Context(), page, limit, search, status)
         if err != nil {
                 utils.ServerError(w, err)
                 return

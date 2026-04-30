@@ -35,7 +35,9 @@ type OrderReportItem struct {
 type OrderReportResponse struct {
 	TotalHits   int               `json:"total_hits"`
 	TotalAmount float64           `json:"total_amount"`
-	Data        []OrderReportItem `json:"data"`
+	TotalPages int `json:"total_pages"`
+	TotalItems int `json:"total_items"`
+	Items        []OrderReportItem `json:"items"`
 }
 
 // Customer Due
@@ -72,14 +74,15 @@ type LowStockReportItem struct {
 	ProductID         int64   `json:"product_id" db:"id"`
 	Name              string  `json:"name" db:"name"`
 	SKU               string  `json:"sku" db:"sku"`
-	CurrentStockQty   float64 `json:"current_stock_qty" db:"current_stock_qty"`
-	MinRetailOrderQty float64 `json:"min_retail_order_qty" db:"min_retail_order_qty"`
-	RetailPrice       float64 `json:"retail_price" db:"retail_price"`
+	CurrentStockQty   float64 `json:"stock_quantity" db:"current_stock_qty"`
+	AlertQty float64 `json:"alert_stock" db:"stock_alert_qty"`
+	ImageURL          *string `json:"image_url" db:"thumbnail"`
 }
 
 type LowStockReportResponse struct {
-	TotalHits int                  `json:"total_hits"`
-	Data      []LowStockReportItem `json:"data"`
+	TotalItems int                  `json:"total_items"`
+	TotalPages int                  `json:"total_pages"`
+	Items      []LowStockReportItem `json:"items"`
 }
 
 // Financial Report
@@ -101,8 +104,8 @@ type FinancialReportResponse struct {
 type ReportFilter struct {
 	SaleType string // 'retail', 'wholesale', ''
 
-	OrderBy  string // 'price_asc', 'price_desc', 'date_desc'
-	Search   string
-	Page     int
-	Limit    int
+	OrderBy string // 'price_asc', 'price_desc', 'date_desc'
+	Search  string
+	Page    int
+	Limit   int
 }

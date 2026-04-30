@@ -30,6 +30,7 @@ type SaleComparisonData struct {
 type ProductSummary struct {
 	ID           int64   `json:"id"`
 	Name         string  `json:"name"`
+	SKU          string  `json:"sku"`
 	CurrentStock float64 `json:"current_stock"`
 	AlertStock   float64 `json:"alert_stock"`
 	TotalSold    float64 `json:"total_sold,omitempty"`

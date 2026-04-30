@@ -119,9 +119,14 @@ func (r *ReportRepo) GetOrdersReport(ctx context.Context, filter model.ReportFil
 	}
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(id), COALESCE(SUM(total), 0) FROM orders WHERE %s`, whereSql)
-	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&resp.TotalHits, &resp.TotalAmount)
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&resp.TotalItems, &resp.TotalAmount)
 	if err != nil {
 		return nil, err
+	}
+
+	resp.TotalPages = (resp.TotalItems + filter.Limit - 1) / filter.Limit
+	if resp.TotalPages <= 0 {
+		resp.TotalPages = 1
 	}
 
 	query := fmt.Sprintf(`
@@ -146,11 +151,11 @@ LIMIT $%d OFFSET $%d
 		if err != nil {
 			return nil, err
 		}
-		resp.Data = append(resp.Data, item)
+		resp.Items = append(resp.Items, item)
 	}
 
-	if resp.Data == nil {
-		resp.Data = []model.OrderReportItem{}
+	if resp.Items == nil {
+		resp.Items = []model.OrderReportItem{}
 	}
 
 	return &resp, nil
@@ -294,7 +299,7 @@ func (r *ReportRepo) GetLowStockReport(ctx context.Context, filter model.ReportF
 	offset := (filter.Page - 1) * filter.Limit
 
 	// Ensure we only retrieve items where stock is low (e.g. <= min_retail_order_qty or < 10)
-	whereClauses := []string{"(current_stock_qty <= COALESCE(min_retail_order_qty, 5))"}
+	whereClauses := []string{"(current_stock_qty <= COALESCE(stock_alert_qty, 0))"}
 	var args []interface{}
 	argID := 1
 
@@ -307,13 +312,18 @@ func (r *ReportRepo) GetLowStockReport(ctx context.Context, filter model.ReportF
 	whereSql := strings.Join(whereClauses, " AND ")
 
 	countQuery := fmt.Sprintf(`SELECT COUNT(id) FROM products WHERE %s`, whereSql)
-	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&resp.TotalHits)
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&resp.TotalItems)
 	if err != nil {
 		return nil, err
 	}
+	
+	resp.TotalPages = (resp.TotalItems + filter.Limit - 1) / filter.Limit
+	if resp.TotalPages <= 0 {
+		resp.TotalPages = 1
+	}
 
 	query := fmt.Sprintf(`
-SELECT id, name, sku, current_stock_qty, min_retail_order_qty, retail_price
+SELECT id, name, sku, current_stock_qty, stock_alert_qty, thumbnail
 FROM products
 WHERE %s
 ORDER BY current_stock_qty ASC
@@ -330,19 +340,20 @@ LIMIT $%d OFFSET $%d
 
 	for rows.Next() {
 		var item model.LowStockReportItem
-		var minRetail *float64
-		err := rows.Scan(&item.ProductID, &item.Name, &item.SKU, &item.CurrentStockQty, &minRetail, &item.RetailPrice)
+		var sku *string
+		err := rows.Scan(&item.ProductID, &item.Name, &sku, &item.CurrentStockQty, &item.AlertQty, &item.ImageURL)
 		if err != nil {
 			return nil, err
 		}
-		if minRetail != nil {
-			item.MinRetailOrderQty = *minRetail
+		if sku != nil {
+			item.SKU = *sku
 		}
-		resp.Data = append(resp.Data, item)
+		
+		resp.Items = append(resp.Items, item)
 	}
 
-	if resp.Data == nil {
-		resp.Data = []model.LowStockReportItem{}
+	if resp.Items == nil {
+		resp.Items = []model.LowStockReportItem{}
 	}
 
 	return &resp, nil
