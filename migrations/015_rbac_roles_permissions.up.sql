@@ -91,6 +91,7 @@ VALUES
     ('order.edit', 'Edit Orders', 'orders', 'Can update order status and payment state'),
     ('order.delete', 'Delete Orders', 'orders', 'Can delete orders'),
     ('pos.create', 'Create POS Sales', 'pos', 'Can create point of sale transactions and invoices'),
+    ('pos.view', 'View POS Sales', 'pos', 'Can view point of sale transactions and invoices'),
     ('report.view', 'View Reports', 'reports', 'Can view POS, Orders, Dues, and Stock reports')
 ON CONFLICT (key) DO NOTHING;
 
