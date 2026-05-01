@@ -37,6 +37,9 @@ func parseReportFilter(r *http.Request) model.ReportFilter {
 		filter.Limit = 20
 	}
 
+	filter.StartDate = r.URL.Query().Get("start_date")
+	filter.EndDate = r.URL.Query().Get("end_date")
+
 	return filter
 }
 
@@ -93,6 +96,16 @@ func (h *ReportHandler) GetLowStockReport(w http.ResponseWriter, r *http.Request
 func (h *ReportHandler) GetFinancialReport(w http.ResponseWriter, r *http.Request) {
 	filter := parseReportFilter(r)
 	resp, err := h.reportService.GetFinancialReport(r.Context(), filter)
+	if err != nil {
+		utils.ServerError(w, err)
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, resp)
+}
+
+func (h *ReportHandler) GetIncomeStatement(w http.ResponseWriter, r *http.Request) {
+	filter := parseReportFilter(r)
+	resp, err := h.reportService.GetIncomeStatement(r.Context(), filter)
 	if err != nil {
 		utils.ServerError(w, err)
 		return

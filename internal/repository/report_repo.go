@@ -363,25 +363,106 @@ func (r *ReportRepo) GetFinancialReport(ctx context.Context, filter model.Report
 	var resp model.FinancialReportResponse
 
 	offset := (filter.Page - 1) * filter.Limit
-	var args []interface{}
 
-	countQuery := `SELECT COUNT(*) FROM view_daily_financial_report`
-	err := r.db.QueryRow(ctx, countQuery).Scan(&resp.TotalHits)
-	if err != nil {
-		return nil, err
+	// Build optional date filter clause for each CTE
+	orderDateWhere := "WHERE order_status = 'delivered'"
+	posDateWhere := "WHERE 1=1"
+	purchaseDateWhere := "WHERE 1=1"
+	expenseDateWhere := "WHERE 1=1"
+
+	var args []interface{}
+	argID := 1
+
+	if filter.StartDate != "" {
+		orderDateWhere += fmt.Sprintf(" AND created_at >= $%d::date", argID)
+		posDateWhere += fmt.Sprintf(" AND sale_date >= $%d::date", argID)
+		purchaseDateWhere += fmt.Sprintf(" AND purchase_date >= $%d::date", argID)
+		expenseDateWhere += fmt.Sprintf(" AND expense_date >= $%d::date", argID)
+		args = append(args, filter.StartDate)
+		argID++
+	}
+	if filter.EndDate != "" {
+		orderDateWhere += fmt.Sprintf(" AND created_at < ($%d::date + interval '1 day')", argID)
+		posDateWhere += fmt.Sprintf(" AND sale_date < ($%d::date + interval '1 day')", argID)
+		purchaseDateWhere += fmt.Sprintf(" AND purchase_date <= $%d::date", argID)
+		expenseDateWhere += fmt.Sprintf(" AND expense_date < ($%d::date + interval '1 day')", argID)
+		args = append(args, filter.EndDate)
+		argID++
 	}
 
-	// Always date desc 
-	query := `
-SELECT transaction_date, total_sales_income, total_sales_refunds, total_purchases, total_expenses, net_profit 
-FROM view_daily_financial_report
-ORDER BY transaction_date DESC
-LIMIT $1 OFFSET $2
-`
-	args = append(args, filter.Limit, offset)
-	rows, err := r.db.Query(ctx, query, args...)
+	baseCTE := fmt.Sprintf(`
+WITH order_daily AS (
+    SELECT DATE(created_at) AS d, COALESCE(SUM(total), 0) AS amount
+    FROM orders %s
+    GROUP BY DATE(created_at)
+),
+pos_daily AS (
+    SELECT DATE(sale_date) AS d, COALESCE(SUM(total), 0) AS amount
+    FROM pos_sales %s
+    GROUP BY DATE(sale_date)
+),
+purchase_daily AS (
+    SELECT purchase_date AS d, COALESCE(SUM(grand_total), 0) AS amount
+    FROM purchases %s
+    GROUP BY purchase_date
+),
+expense_daily AS (
+    SELECT DATE(expense_date) AS d, COALESCE(SUM(amount), 0) AS amount
+    FROM expenses %s
+    GROUP BY DATE(expense_date)
+),
+all_dates AS (
+    SELECT d FROM order_daily
+    UNION SELECT d FROM pos_daily
+    UNION SELECT d FROM purchase_daily
+    UNION SELECT d FROM expense_daily
+),
+daily_report AS (
+    SELECT
+        ad.d AS transaction_date,
+        COALESCE(od.amount, 0) + COALESCE(pd.amount, 0) AS total_sales_income,
+        0::numeric AS total_sales_refunds,
+        COALESCE(pud.amount, 0) AS total_purchases,
+        COALESCE(ed.amount, 0) AS total_expenses,
+        (COALESCE(od.amount, 0) + COALESCE(pd.amount, 0) - COALESCE(pud.amount, 0) - COALESCE(ed.amount, 0)) AS net_profit
+    FROM all_dates ad
+    LEFT JOIN order_daily od ON ad.d = od.d
+    LEFT JOIN pos_daily pd ON ad.d = pd.d
+    LEFT JOIN purchase_daily pud ON ad.d = pud.d
+    LEFT JOIN expense_daily ed ON ad.d = ed.d
+)`, orderDateWhere, posDateWhere, purchaseDateWhere, expenseDateWhere)
+
+	// Count total days
+	countQuery := baseCTE + ` SELECT COUNT(*) FROM daily_report`
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&resp.TotalHits)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("financial count query: %w", err)
+	}
+
+	// Fetch summary totals
+	summaryQuery := baseCTE + `
+SELECT COALESCE(SUM(total_sales_income), 0), COALESCE(SUM(total_sales_refunds), 0),
+       COALESCE(SUM(total_purchases), 0), COALESCE(SUM(total_expenses), 0), COALESCE(SUM(net_profit), 0)
+FROM daily_report`
+	err = r.db.QueryRow(ctx, summaryQuery, args...).Scan(
+		&resp.TotalSalesIncome, &resp.TotalSalesRefunds,
+		&resp.TotalPurchases, &resp.TotalExpenses, &resp.TotalNetProfit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("financial summary query: %w", err)
+	}
+
+	// Fetch paginated rows
+	dataQuery := fmt.Sprintf(baseCTE+`
+SELECT transaction_date, total_sales_income, total_sales_refunds, total_purchases, total_expenses, net_profit
+FROM daily_report
+ORDER BY transaction_date DESC
+LIMIT $%d OFFSET $%d`, argID, argID+1)
+
+	dataArgs := append(args, filter.Limit, offset)
+	rows, err := r.db.Query(ctx, dataQuery, dataArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("financial data query: %w", err)
 	}
 	defer rows.Close()
 
@@ -396,7 +477,7 @@ LIMIT $1 OFFSET $2
 			&item.NetProfit,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("financial row scan: %w", err)
 		}
 		resp.Data = append(resp.Data, item)
 	}
@@ -407,3 +488,178 @@ LIMIT $1 OFFSET $2
 
 	return &resp, nil
 }
+
+func (r *ReportRepo) GetIncomeStatement(ctx context.Context, filter model.ReportFilter) (*model.IncomeStatementResponse, error) {
+	var resp model.IncomeStatementResponse
+	resp.StartDate = filter.StartDate
+	resp.EndDate = filter.EndDate
+
+	// ── 1. Online Order Revenue (delivered orders only) ──
+	orderQuery := `
+		SELECT
+			COALESCE(SUM(subtotal), 0),
+			COALESCE(SUM(shipping_cost), 0),
+			COALESCE(SUM(discount), 0),
+			COALESCE(SUM(tax), 0),
+			COUNT(*)
+		FROM orders
+		WHERE order_status = 'delivered'`
+	orderArgs := []interface{}{}
+	oArgID := 1
+	if filter.StartDate != "" {
+		orderQuery += fmt.Sprintf(" AND created_at >= $%d::date", oArgID)
+		orderArgs = append(orderArgs, filter.StartDate)
+		oArgID++
+	}
+	if filter.EndDate != "" {
+		orderQuery += fmt.Sprintf(" AND created_at < ($%d::date + interval '1 day')", oArgID)
+		orderArgs = append(orderArgs, filter.EndDate)
+		oArgID++
+	}
+	var orderSubtotal, orderShipping, orderDiscount, orderTax float64
+	err := r.db.QueryRow(ctx, orderQuery, orderArgs...).Scan(
+		&orderSubtotal, &orderShipping, &orderDiscount, &orderTax, &resp.OnlineOrderCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("order revenue query: %w", err)
+	}
+	resp.OnlineOrderRevenue = orderSubtotal
+	resp.ShippingIncome = orderShipping
+
+	// ── 2. POS Sales Revenue ──
+	posQuery := `
+		SELECT
+			COALESCE(SUM(subtotal), 0),
+			COALESCE(SUM(discount), 0),
+			COALESCE(SUM(tax), 0),
+			COUNT(*)
+		FROM pos_sales
+		WHERE 1=1`
+	posArgs := []interface{}{}
+	pArgID := 1
+	if filter.StartDate != "" {
+		posQuery += fmt.Sprintf(" AND sale_date >= $%d::date", pArgID)
+		posArgs = append(posArgs, filter.StartDate)
+		pArgID++
+	}
+	if filter.EndDate != "" {
+		posQuery += fmt.Sprintf(" AND sale_date < ($%d::date + interval '1 day')", pArgID)
+		posArgs = append(posArgs, filter.EndDate)
+		pArgID++
+	}
+	var posSubtotal, posDiscount, posTax float64
+	err = r.db.QueryRow(ctx, posQuery, posArgs...).Scan(
+		&posSubtotal, &posDiscount, &posTax, &resp.POSSalesCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("pos revenue query: %w", err)
+	}
+	resp.POSSalesRevenue = posSubtotal
+
+	// ── Compute Revenue Totals ──
+	resp.TotalDiscounts = orderDiscount + posDiscount
+	resp.TaxCollected = orderTax + posTax
+	resp.GrossRevenue = resp.OnlineOrderRevenue + resp.POSSalesRevenue + resp.ShippingIncome
+	resp.NetRevenue = resp.GrossRevenue - resp.TotalDiscounts
+
+	// ── 3. Purchases (COGS) ──
+	purchaseQuery := `
+		SELECT COALESCE(SUM(grand_total), 0), COALESCE(SUM(shipping_charge), 0), COUNT(*)
+		FROM purchases
+		WHERE 1=1`
+	purchaseArgs := []interface{}{}
+	puArgID := 1
+	if filter.StartDate != "" {
+		purchaseQuery += fmt.Sprintf(" AND purchase_date >= $%d::date", puArgID)
+		purchaseArgs = append(purchaseArgs, filter.StartDate)
+		puArgID++
+	}
+	if filter.EndDate != "" {
+		purchaseQuery += fmt.Sprintf(" AND purchase_date <= $%d::date", puArgID)
+		purchaseArgs = append(purchaseArgs, filter.EndDate)
+		puArgID++
+	}
+	err = r.db.QueryRow(ctx, purchaseQuery, purchaseArgs...).Scan(
+		&resp.TotalPurchases, &resp.PurchaseShipping, &resp.PurchaseCount,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("purchases query: %w", err)
+	}
+
+	// ── 4. Purchase Returns ──
+	returnQuery := `
+		SELECT COALESCE(SUM(grand_total), 0)
+		FROM purchase_return
+		WHERE 1=1`
+	returnArgs := []interface{}{}
+	rArgID := 1
+	if filter.StartDate != "" {
+		returnQuery += fmt.Sprintf(" AND return_date >= $%d::date", rArgID)
+		returnArgs = append(returnArgs, filter.StartDate)
+		rArgID++
+	}
+	if filter.EndDate != "" {
+		returnQuery += fmt.Sprintf(" AND return_date <= $%d::date", rArgID)
+		returnArgs = append(returnArgs, filter.EndDate)
+		rArgID++
+	}
+	err = r.db.QueryRow(ctx, returnQuery, returnArgs...).Scan(&resp.PurchaseReturns)
+	if err != nil {
+		return nil, fmt.Errorf("purchase returns query: %w", err)
+	}
+
+	// ── Compute COGS ──
+	resp.NetCOGS = resp.TotalPurchases - resp.PurchaseReturns + resp.PurchaseShipping
+
+	// ── Gross Profit ──
+	resp.GrossProfit = resp.NetRevenue - resp.NetCOGS
+	if resp.NetRevenue > 0 {
+		resp.GrossProfitMargin = (resp.GrossProfit / resp.NetRevenue) * 100
+	}
+
+	// ── 5. Operating Expenses by Category ──
+	expenseQuery := `
+		SELECT ec.name, COALESCE(SUM(e.amount), 0)
+		FROM expenses e
+		JOIN expense_categories ec ON e.category_id = ec.id
+		WHERE 1=1`
+	expenseArgs := []interface{}{}
+	eArgID := 1
+	if filter.StartDate != "" {
+		expenseQuery += fmt.Sprintf(" AND e.expense_date >= $%d::date", eArgID)
+		expenseArgs = append(expenseArgs, filter.StartDate)
+		eArgID++
+	}
+	if filter.EndDate != "" {
+		expenseQuery += fmt.Sprintf(" AND e.expense_date < ($%d::date + interval '1 day')", eArgID)
+		expenseArgs = append(expenseArgs, filter.EndDate)
+		eArgID++
+	}
+	expenseQuery += " GROUP BY ec.name ORDER BY SUM(e.amount) DESC"
+
+	rows, err := r.db.Query(ctx, expenseQuery, expenseArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("expenses query: %w", err)
+	}
+	defer rows.Close()
+
+	resp.ExpenseBreakdown = []model.ExpenseCategoryItem{}
+	resp.TotalExpenses = 0
+	for rows.Next() {
+		var item model.ExpenseCategoryItem
+		if err := rows.Scan(&item.CategoryName, &item.Amount); err != nil {
+			return nil, fmt.Errorf("expense scan: %w", err)
+		}
+		resp.TotalExpenses += item.Amount
+		resp.ExpenseBreakdown = append(resp.ExpenseBreakdown, item)
+	}
+
+	// ── Net Income ──
+	resp.NetIncome = resp.GrossProfit - resp.TotalExpenses
+	if resp.NetRevenue > 0 {
+		resp.NetIncomeMargin = (resp.NetIncome / resp.NetRevenue) * 100
+	}
+
+	return &resp, nil
+}
+

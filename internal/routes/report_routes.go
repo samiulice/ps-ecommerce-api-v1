@@ -18,6 +18,7 @@ func reportRoutes(h *handler.ReportHandler, jwtSecret string) *chi.Mux {
 	r.Get("/supplier-dues", h.GetSupplierDueReport)
 	r.Get("/low-stock", h.GetLowStockReport)
 	r.Get("/financial", h.GetFinancialReport)
+	r.Get("/income-statement", h.GetIncomeStatement)
 
 	return r
 }

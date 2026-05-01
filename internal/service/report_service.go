@@ -74,3 +74,8 @@ func (s *ReportService) GetFinancialReport(ctx context.Context, filter model.Rep
 	}
 	return s.reportRepo.GetFinancialReport(ctx, filter)
 }
+
+func (s *ReportService) GetIncomeStatement(ctx context.Context, filter model.ReportFilter) (*model.IncomeStatementResponse, error) {
+	return s.reportRepo.GetIncomeStatement(ctx, filter)
+}
+

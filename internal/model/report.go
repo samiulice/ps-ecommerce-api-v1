@@ -97,15 +97,64 @@ type FinancialReportItem struct {
 }
 
 type FinancialReportResponse struct {
-	TotalHits int                   `json:"total_hits"`
-	Data      []FinancialReportItem `json:"data"`
+	TotalHits         int                   `json:"total_hits"`
+	TotalSalesIncome  float64               `json:"total_sales_income"`
+	TotalSalesRefunds float64               `json:"total_sales_refunds"`
+	TotalPurchases    float64               `json:"total_purchases"`
+	TotalExpenses     float64               `json:"total_expenses"`
+	TotalNetProfit    float64               `json:"total_net_profit"`
+	Data              []FinancialReportItem `json:"data"`
+}
+
+// Income Statement
+
+type ExpenseCategoryItem struct {
+	CategoryName string  `json:"category_name"`
+	Amount       float64 `json:"amount"`
+}
+
+type IncomeStatementResponse struct {
+	StartDate string `json:"start_date"`
+	EndDate   string `json:"end_date"`
+
+	// Revenue Section
+	OnlineOrderRevenue float64 `json:"online_order_revenue"`
+	OnlineOrderCount   int     `json:"online_order_count"`
+	POSSalesRevenue    float64 `json:"pos_sales_revenue"`
+	POSSalesCount      int     `json:"pos_sales_count"`
+	ShippingIncome     float64 `json:"shipping_income"`
+	GrossRevenue       float64 `json:"gross_revenue"`
+	TotalDiscounts     float64 `json:"total_discounts"`
+	TaxCollected       float64 `json:"tax_collected"`
+	NetRevenue         float64 `json:"net_revenue"`
+
+	// COGS Section
+	TotalPurchases   float64 `json:"total_purchases"`
+	PurchaseCount    int     `json:"purchase_count"`
+	PurchaseReturns  float64 `json:"purchase_returns"`
+	PurchaseShipping float64 `json:"purchase_shipping"`
+	NetCOGS          float64 `json:"net_cogs"`
+
+	// Gross Profit
+	GrossProfit       float64 `json:"gross_profit"`
+	GrossProfitMargin float64 `json:"gross_profit_margin"`
+
+	// Operating Expenses
+	ExpenseBreakdown []ExpenseCategoryItem `json:"expense_breakdown"`
+	TotalExpenses    float64               `json:"total_expenses"`
+
+	// Net Income
+	NetIncome       float64 `json:"net_income"`
+	NetIncomeMargin float64 `json:"net_income_margin"`
 }
 
 type ReportFilter struct {
 	SaleType string // 'retail', 'wholesale', ''
 
-	OrderBy string // 'price_asc', 'price_desc', 'date_desc'
-	Search  string
-	Page    int
-	Limit   int
+	OrderBy   string // 'price_asc', 'price_desc', 'date_desc'
+	Search    string
+	Page      int
+	Limit     int
+	StartDate string // YYYY-MM-DD
+	EndDate   string // YYYY-MM-DD
 }
