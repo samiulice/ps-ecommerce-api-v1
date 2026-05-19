@@ -252,6 +252,16 @@ func (h *ProductHandler) parseProductForm(r *http.Request) (*model.Product, erro
 			p.UnitID = &id
 		}
 	}
+	if v := r.FormValue("retail_unit_id"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil {
+			p.RetailUnitID = &id
+		}
+	}
+	if v := r.FormValue("wholesale_unit_id"); v != "" {
+		if id, err := strconv.Atoi(v); err == nil {
+			p.WholesaleUnitID = &id
+		}
+	}
 	if v := r.FormValue("status"); v != "" {
 		if s, err := strconv.Atoi(v); err == nil {
 			p.Status = s

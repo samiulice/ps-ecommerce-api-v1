@@ -14,7 +14,11 @@ type Product struct {
 	BrandID              *int64                 `json:"brand_id"`
 	SKU                  string                 `json:"sku"`
 	Status               int                    `json:"status"` // 1: Active, 0: Inactive
-	UnitID               *int                   `json:"unit_id"`
+	UnitID               *int                   `json:"unit_id"` // Deprecated: use retail_unit_id or wholesale_unit_id instead
+	RetailUnitID         *int                   `json:"retail_unit_id"`
+	WholesaleUnitID      *int                   `json:"wholesale_unit_id"`
+	RetailUnitSymbol     *string                `json:"retail_unit_symbol"`
+	WholesaleUnitSymbol  *string                `json:"wholesale_unit_symbol"`
 	Tags                 string                 `json:"tags"`
 	Thumbnail            string                 `json:"thumbnail"`
 	GalleryImages        []string               `json:"gallery_images"`
