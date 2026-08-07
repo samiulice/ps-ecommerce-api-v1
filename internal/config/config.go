@@ -29,7 +29,7 @@ func LoadConfig() *Config {
 			ReadTimeout:   getEnvDuration("SERVER_READ_TIMEOUT", 10*time.Second),
 			WriteTimeout:  getEnvDuration("SERVER_WRITE_TIMEOUT", 15*time.Second),
 			IdleTimeout:   getEnvDuration("SERVER_IDLE_TIMEOUT", 60*time.Second),
-			MaxRequests:   getEnvInt("MAX_REQUESTS", 100),
+			MaxRequests:   getEnvInt("MAX_REQUESTS", 600000),
 			RequestWindow: getEnvDuration("REQUEST_WINDOW", 60*time.Second),
 		},
 		JWT: JWTConfig{

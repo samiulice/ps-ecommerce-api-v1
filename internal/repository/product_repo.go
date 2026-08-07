@@ -284,11 +284,14 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 		LEFT JOIN units r_u ON p.retail_unit_id = r_u.id
 		LEFT JOIN units w_u ON p.wholesale_unit_id = w_u.id
 	`
-	countQuery := `SELECT COUNT(*) FROM products`
+	// 1. Add alias 'p' to countQuery
+	countQuery := `SELECT COUNT(*) FROM products p`
+
 	if filter.Compact {
+		// 2. Add alias 'p' to compact mode baseQuery
 		baseQuery = `
-			SELECT id, name, thumbnail, retail_price, wholesale_price
-			FROM products
+			SELECT p.id, p.name, p.thumbnail, p.retail_price, p.wholesale_price
+			FROM products p
 		`
 	}
 
@@ -374,7 +377,6 @@ func (r *ProductRepo) GetProducts(ctx context.Context, filter model.ProductFilte
 		if filter.Compact {
 			err = rows.Scan(&p.ID, &p.Name, &p.Thumbnail, &p.RetailPrice, &p.WholesalePrice)
 		} else {
-			// Scanning a subset of fields for list view optimization
 			err = rows.Scan(
 				&p.ID, &p.Name, &p.Description, &p.CategoryID, &p.SubCategoryID, &p.SubSubCategoryID,
 				&p.BrandID, &p.SKU, &p.Status, &p.UnitID, &p.RetailUnitID, &p.WholesaleUnitID, &p.Tags, &p.Thumbnail, &p.GalleryImages,

@@ -41,9 +41,15 @@ func RateLimiterMiddleware(cfg RateLimiterConfig) func(http.Handler) http.Handle
 				return
 			}
 
-			// Set expiration for first request
+			// Ensure expiration is set
 			if count == 1 {
 				cfg.Redis.Expire(ctx, key, cfg.Duration)
+			} else {
+				// Fallback: If a key somehow exists without an expiration TTL, add it so we don't permaban clients
+				ttl, err := cfg.Redis.TTL(ctx, key).Result()
+				if err == nil && ttl < 0 {
+					cfg.Redis.Expire(ctx, key, cfg.Duration)
+				}
 			}
 
 			if count > int64(cfg.Requests) {
